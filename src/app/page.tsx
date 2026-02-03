@@ -177,11 +177,11 @@ export default function Home() {
         const result = await response.json();
 
         // Parse dates from the response
-        const txs = result.transactions.map((tx: PerpsTransaction & NormalizedTransaction & { date?: string; timestamp?: string }) => ({
+        const txs = result.transactions.map((tx: Record<string, unknown> & { date?: string; timestamp?: string }) => ({
           ...tx,
           date: tx.date ? new Date(tx.date) : undefined,
           timestamp: tx.timestamp ? new Date(tx.timestamp) : undefined,
-        }));
+        })) as (PerpsTransaction | NormalizedTransaction)[];
 
         setTransactions(txs);
         setSummary(result.summary);
