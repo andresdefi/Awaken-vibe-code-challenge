@@ -2,17 +2,29 @@
 
 import { useState, useCallback, type FormEvent } from "react";
 import { cn } from "@/lib/utils";
-import { isValidSS58Address } from "@/lib/chains/bittensor/utils";
-
-const EXAMPLE_ADDRESS = "5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v";
 
 export interface WalletInputProps {
   onSubmit: (address: string) => void;
   isLoading: boolean;
   disabled?: boolean;
+  // Chain-specific configuration
+  validateAddress: (address: string) => boolean;
+  placeholder: string;
+  exampleAddress: string;
+  errorMessage: string;
+  ariaLabel: string;
 }
 
-export function WalletInput({ onSubmit, isLoading, disabled }: WalletInputProps) {
+export function WalletInput({
+  onSubmit,
+  isLoading,
+  disabled,
+  validateAddress,
+  placeholder,
+  exampleAddress,
+  errorMessage,
+  ariaLabel,
+}: WalletInputProps) {
   const [address, setAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -28,20 +40,20 @@ export function WalletInput({ onSubmit, isLoading, disabled }: WalletInputProps)
         return;
       }
 
-      if (!isValidSS58Address(trimmedAddress)) {
-        setError("Invalid address format. Bittensor addresses start with '5' and are 46-48 characters.");
+      if (!validateAddress(trimmedAddress)) {
+        setError(errorMessage);
         return;
       }
 
       onSubmit(trimmedAddress);
     },
-    [address, onSubmit]
+    [address, onSubmit, validateAddress, errorMessage]
   );
 
   const handleTryExample = useCallback(() => {
-    setAddress(EXAMPLE_ADDRESS);
+    setAddress(exampleAddress);
     setError(null);
-  }, []);
+  }, [exampleAddress]);
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl space-y-4">
@@ -54,9 +66,9 @@ export function WalletInput({ onSubmit, isLoading, disabled }: WalletInputProps)
               setAddress(e.target.value);
               if (error) setError(null);
             }}
-            placeholder="Enter Bittensor wallet address (5...)"
+            placeholder={placeholder}
             disabled={disabled || isLoading}
-            aria-label="Bittensor wallet address"
+            aria-label={ariaLabel}
             aria-invalid={!!error}
             className={cn(
               "w-full rounded-xl border bg-white px-4 py-3.5 text-sm text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100",
@@ -123,7 +135,7 @@ export function WalletInput({ onSubmit, isLoading, disabled }: WalletInputProps)
           disabled={isLoading}
           className="font-mono text-emerald-600 hover:text-emerald-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed dark:text-emerald-400 dark:hover:text-emerald-300"
         >
-          {EXAMPLE_ADDRESS.slice(0, 8)}...{EXAMPLE_ADDRESS.slice(-6)}
+          {exampleAddress.slice(0, 8)}...{exampleAddress.slice(-6)}
         </button>
       </div>
     </form>

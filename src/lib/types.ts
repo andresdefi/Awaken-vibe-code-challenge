@@ -5,7 +5,25 @@ export type TransactionType =
   | "transfer_received"
   | "stake"
   | "unstake"
-  | "emission_reward";
+  | "emission_reward"
+  | "slash"
+  | "bond"
+  | "unbond"
+  | "nominate"
+  // Ronin-specific types
+  | "swap"
+  | "nft_purchase"
+  | "nft_sale"
+  | "nft_sent"
+  | "nft_received"
+  | "token_sent"
+  | "token_received"
+  | "liquidity_add"
+  | "liquidity_remove"
+  | "approve"
+  | "mint"
+  | "burn"
+  | "airdrop";
 
 export type AwakenTag =
   | "payment"
@@ -13,7 +31,13 @@ export type AwakenTag =
   | "receive"
   | "staking_deposit"
   | "unstaking_withdraw"
-  | "claim_rewards";
+  | "claim_rewards"
+  | "lost"
+  // Additional Awaken tags
+  | "trade"
+  | "gift_sent"
+  | "gift_received"
+  | "airdrop";
 
 export interface NormalizedTransaction {
   id: string;
@@ -55,4 +79,32 @@ export interface ChainConfig {
   description: string;
   features: string[];
   enabled: boolean;
+}
+
+// Perpetuals/Futures specific types for Awaken CSV
+export type PerpsTag = "open_position" | "close_position" | "funding_payment";
+
+export interface PerpsTransaction {
+  id: string;
+  date: Date;
+  asset: string;  // Underlying asset (BTC, ETH, etc.)
+  amount: number;  // Amount of underlying asset
+  fee: number;
+  pnl: number;  // Can be negative, positive, or zero
+  paymentToken: string;  // Token P&L is settled in (USDC, USDT)
+  notes: string;
+  transactionHash: string;
+  tag: PerpsTag;
+}
+
+export interface AwakenPerpsCSVRow {
+  Date: string;
+  Asset: string;
+  Amount: string;
+  Fee: string;
+  "P&L": string;
+  "Payment Token": string;
+  Notes: string;
+  "Transaction Hash": string;
+  Tag: string;
 }

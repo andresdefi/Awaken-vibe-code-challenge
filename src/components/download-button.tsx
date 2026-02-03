@@ -9,9 +9,10 @@ export interface DownloadButtonProps {
   transactions: NormalizedTransaction[];
   address: string;
   disabled?: boolean;
+  chain?: string;
 }
 
-export function DownloadButton({ transactions, address, disabled }: DownloadButtonProps) {
+export function DownloadButton({ transactions, address, disabled, chain = "bittensor" }: DownloadButtonProps) {
   const [downloaded, setDownloaded] = useState(false);
 
   const handleDownload = useCallback(() => {
@@ -19,7 +20,7 @@ export function DownloadButton({ transactions, address, disabled }: DownloadButt
 
     const csv = generateAwakenCSV(transactions);
     const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `bittensor-${address.slice(0, 8)}-${timestamp}-awaken.csv`;
+    const filename = `${chain}-${address.slice(0, 8)}-${timestamp}-awaken.csv`;
 
     downloadCSV(csv, filename);
     setDownloaded(true);

@@ -7,10 +7,11 @@ import { DownloadButton } from "@/components/download-button";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { TableSkeleton } from "@/components/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { isValidSS58Address } from "@/lib/chains/bittensor/utils";
+import { isValidPolkadotAddress } from "@/lib/chains/polkadot/utils";
 import type { NormalizedTransaction } from "@/lib/types";
 
-const EXAMPLE_ADDRESS = "5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v";
+// Example Polkadot address (Polkadot Treasury)
+const EXAMPLE_ADDRESS = "13UVJyLnbVp9RBZYFwFGyDvVd1y27Tt8tkntv6Q7JVPhFsTB";
 
 interface FetchState {
   status: "idle" | "fetching" | "processing" | "complete" | "error";
@@ -22,21 +23,22 @@ interface TransactionData {
   transactions: NormalizedTransaction[];
   breakdown: {
     transfers: number;
-    delegations: number;
-    emissionRewards: number;
+    rewards: number;
+    slashes: number;
+    staking: number;
   };
 }
 
-export default function Home() {
+export default function PolkadotPage() {
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const [data, setData] = useState<TransactionData | null>(null);
 
   const handleFetchTransactions = useCallback(async (address: string) => {
-    setFetchState({ status: "fetching", message: "Connecting to Taostats API..." });
+    setFetchState({ status: "fetching", message: "Connecting to Subscan API..." });
     setData(null);
 
     try {
-      const response = await fetch(`/api/bittensor/transactions?address=${encodeURIComponent(address)}`);
+      const response = await fetch(`/api/polkadot/transactions?address=${encodeURIComponent(address)}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -80,22 +82,22 @@ export default function Home() {
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-xl dark:border-zinc-800/50 dark:bg-zinc-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-600 shadow-lg shadow-emerald-600/20">
-              <TaoIcon />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-[#E6007A] shadow-lg shadow-[#E6007A]/20">
+              <PolkadotIcon />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Bittensor Tax CSV</h1>
+              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Polkadot Tax CSV</h1>
               <p className="text-xs text-zinc-500">Export to Awaken.tax format</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="https://taostats.io"
+              href="https://subscan.io"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden text-xs text-zinc-500 hover:text-zinc-400 dark:hover:text-zinc-300 sm:block"
             >
-              Powered by Taostats
+              Powered by Subscan
             </a>
             <a
               href="https://github.com/andresdefi/Awaken-vibe-code-challenge"
@@ -115,26 +117,26 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           {/* Hero Section */}
           <div className="mb-10 text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#E6007A]/10 px-3 py-1 text-xs font-medium text-[#E6007A]">
               <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#E6007A] opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-[#E6007A]" />
               </span>
               Complete staking & rewards tracking
             </div>
             <h2 className="text-balance text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl">
-              Export Bittensor Transactions
+              Export Polkadot Transactions
               <br />
-              <span className="text-emerald-600 dark:text-emerald-400">for Tax Reporting</span>
+              <span className="text-[#E6007A]">for Tax Reporting</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-zinc-600 dark:text-zinc-400">
-              Fetch all transfers, staking events, and emission rewards for any Bittensor wallet.
+              Fetch all transfers, staking rewards, slashing events, and bonding transactions for any Polkadot wallet.
               Download as a CSV compatible with{" "}
               <a
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-[#E6007A] hover:underline"
               >
                 Awaken.tax
               </a>
@@ -146,6 +148,7 @@ export default function Home() {
               <FeatureBadge icon={<TransferIcon />} label="Transfers" />
               <FeatureBadge icon={<StakeIcon />} label="Staking" />
               <FeatureBadge icon={<RewardIcon />} label="Rewards" highlight />
+              <FeatureBadge icon={<SlashIcon />} label="Slashing" />
               <FeatureBadge icon={<PriceIcon />} label="USD Prices" />
             </div>
           </div>
@@ -155,11 +158,11 @@ export default function Home() {
             <WalletInput
               onSubmit={handleFetchTransactions}
               isLoading={isLoading}
-              validateAddress={isValidSS58Address}
-              placeholder="Enter Bittensor wallet address (5...)"
+              validateAddress={isValidPolkadotAddress}
+              placeholder="Enter Polkadot wallet address (1...)"
               exampleAddress={EXAMPLE_ADDRESS}
-              errorMessage="Invalid address format. Bittensor addresses start with '5' and are 46-48 characters."
-              ariaLabel="Bittensor wallet address"
+              errorMessage="Invalid address format. Polkadot addresses start with '1' and are 47-48 characters."
+              ariaLabel="Polkadot wallet address"
             />
           </div>
 
@@ -189,10 +192,10 @@ export default function Home() {
                   <div>
                     <p className="text-xs text-zinc-500">Wallet Address</p>
                     <a
-                      href={`https://taostats.io/coldkey/${data.address}`}
+                      href={`https://polkadot.subscan.io/account/${data.address}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-mono text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+                      className="font-mono text-sm text-[#E6007A] hover:underline"
                     >
                       {data.address.slice(0, 12)}...{data.address.slice(-8)}
                     </a>
@@ -203,7 +206,7 @@ export default function Home() {
                     <p className="text-xs text-zinc-500">Total Transactions</p>
                     <p className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{data.transactions.length}</p>
                   </div>
-                  <DownloadButton transactions={data.transactions} address={data.address} />
+                  <DownloadButton transactions={data.transactions} address={data.address} chain="polkadot" />
                 </div>
               </div>
 
@@ -220,7 +223,7 @@ export default function Home() {
               </div>
               <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">No transactions found</p>
               <p className="mt-2 text-sm text-zinc-500">
-                This wallet has no transaction history on the Bittensor network.
+                This wallet has no transaction history on the Polkadot network.
               </p>
             </div>
           )}
@@ -247,7 +250,7 @@ export default function Home() {
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-[#E6007A] hover:underline"
               >
                 Awaken.tax
               </a>{" "}
@@ -255,21 +258,21 @@ export default function Home() {
             </p>
             <div className="flex items-center gap-4">
               <a
-                href="https://taostats.io"
+                href="https://subscan.io"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-zinc-700 dark:hover:text-zinc-300"
               >
-                Taostats API
+                Subscan API
               </a>
               <span className="text-zinc-300 dark:text-zinc-700">|</span>
               <a
-                href="https://bittensor.com"
+                href="https://polkadot.network"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-zinc-700 dark:hover:text-zinc-300"
               >
-                Bittensor
+                Polkadot
               </a>
             </div>
           </div>
@@ -294,12 +297,17 @@ function FeatureBadge({ icon, label, highlight }: { icon: React.ReactNode; label
 }
 
 // Icons
-function TaoIcon() {
+function PolkadotIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-      <circle cx="12" cy="9" r="3" fill="currentColor" />
-      <path d="M12 12v7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="5" r="3" fill="currentColor" />
+      <circle cx="12" cy="19" r="3" fill="currentColor" />
+      <circle cx="5" cy="12" r="2.5" fill="currentColor" />
+      <circle cx="19" cy="12" r="2.5" fill="currentColor" />
+      <circle cx="7" cy="7" r="2" fill="currentColor" />
+      <circle cx="17" cy="17" r="2" fill="currentColor" />
+      <circle cx="17" cy="7" r="2" fill="currentColor" />
+      <circle cx="7" cy="17" r="2" fill="currentColor" />
     </svg>
   );
 }
@@ -327,6 +335,15 @@ function RewardIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    </svg>
+  );
+}
+
+function SlashIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 2 2 22" />
+      <circle cx="12" cy="12" r="10" />
     </svg>
   );
 }

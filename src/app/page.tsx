@@ -15,22 +15,76 @@ const CHAINS: ChainConfig[] = [
     enabled: true,
   },
   {
-    id: "solana",
-    name: "Solana",
-    symbol: "SOL",
-    icon: "◎",
-    description: "Coming soon",
-    features: ["Transfers", "Staking", "DeFi"],
-    enabled: false,
+    id: "polkadot",
+    name: "Polkadot",
+    symbol: "DOT",
+    icon: "●",
+    description: "Export transfers, staking rewards, and slashing events",
+    features: ["Transfers", "Staking", "Rewards", "Slashing", "USD Prices"],
+    enabled: true,
   },
   {
-    id: "ethereum",
-    name: "Ethereum",
-    symbol: "ETH",
-    icon: "Ξ",
-    description: "Coming soon",
-    features: ["Transfers", "Staking", "DeFi", "NFTs"],
-    enabled: false,
+    id: "kusama",
+    name: "Kusama",
+    symbol: "KSM",
+    icon: "◆",
+    description: "Export transfers, staking, crowdloans, and auction bids",
+    features: ["Transfers", "Staking", "Crowdloans", "Auctions", "USD Prices"],
+    enabled: true,
+  },
+  {
+    id: "osmosis",
+    name: "Osmosis",
+    symbol: "OSMO",
+    icon: "⚗",
+    description: "Export transfers, swaps, LP positions, and staking rewards",
+    features: ["Transfers", "Swaps", "LP Positions", "Staking", "IBC", "USD Prices"],
+    enabled: true,
+  },
+  {
+    id: "injective",
+    name: "Injective",
+    symbol: "INJ",
+    icon: "◇",
+    description: "Export transfers, staking, IBC, and trading activity",
+    features: ["Transfers", "Staking", "IBC", "Trading", "USD Prices"],
+    enabled: true,
+  },
+  {
+    id: "ronin",
+    name: "Ronin",
+    symbol: "RON",
+    icon: "⬡",
+    description: "Export transfers, swaps, NFT trades, and gaming transactions",
+    features: ["Transfers", "Swaps", "NFTs", "Staking", "Gaming", "USD Prices"],
+    enabled: true,
+  },
+  {
+    id: "extended",
+    name: "Extended",
+    symbol: "PERPS",
+    icon: "◈",
+    description: "Export perpetuals trades, positions, and funding payments",
+    features: ["Trades", "Positions", "Funding", "P&L", "API Key Required"],
+    enabled: true,
+  },
+  {
+    id: "dydx",
+    name: "dYdX",
+    symbol: "DYDX",
+    icon: "◆",
+    description: "Export perpetuals trades, positions, and funding payments",
+    features: ["Trades", "Positions", "Funding", "P&L", "No API Key"],
+    enabled: true,
+  },
+  {
+    id: "canton",
+    name: "Canton Network",
+    symbol: "CC",
+    icon: "◎",
+    description: "Export Canton Coin transfers, rewards, and fees",
+    features: ["Transfers", "Rewards", "Fees", "Locked CC"],
+    enabled: true,
   },
 ];
 
@@ -59,7 +113,7 @@ export default function Home() {
               For Awaken.tax
             </a>
             <a
-              href="https://github.com"
+              href="https://github.com/andresdefi/Awaken-vibe-code-challenge"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg bg-zinc-200 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"

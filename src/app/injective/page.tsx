@@ -7,10 +7,11 @@ import { DownloadButton } from "@/components/download-button";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { TableSkeleton } from "@/components/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { isValidSS58Address } from "@/lib/chains/bittensor/utils";
+import { isValidInjectiveAddress } from "@/lib/chains/injective/utils";
 import type { NormalizedTransaction } from "@/lib/types";
 
-const EXAMPLE_ADDRESS = "5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v";
+// Example Injective address
+const EXAMPLE_ADDRESS = "inj1hkhdaj2a2clmq5jq6mspsggqs7x6uq6cvlpwmq";
 
 interface FetchState {
   status: "idle" | "fetching" | "processing" | "complete" | "error";
@@ -22,21 +23,23 @@ interface TransactionData {
   transactions: NormalizedTransaction[];
   breakdown: {
     transfers: number;
-    delegations: number;
-    emissionRewards: number;
+    staking: number;
+    rewards: number;
+    trades: number;
+    ibc: number;
   };
 }
 
-export default function Home() {
+export default function InjectivePage() {
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const [data, setData] = useState<TransactionData | null>(null);
 
   const handleFetchTransactions = useCallback(async (address: string) => {
-    setFetchState({ status: "fetching", message: "Connecting to Taostats API..." });
+    setFetchState({ status: "fetching", message: "Connecting to Injective network..." });
     setData(null);
 
     try {
-      const response = await fetch(`/api/bittensor/transactions?address=${encodeURIComponent(address)}`);
+      const response = await fetch(`/api/injective/transactions?address=${encodeURIComponent(address)}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -80,22 +83,22 @@ export default function Home() {
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-xl dark:border-zinc-800/50 dark:bg-zinc-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-600 shadow-lg shadow-emerald-600/20">
-              <TaoIcon />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-[#00F2FE] shadow-lg shadow-[#00F2FE]/20">
+              <InjectiveIcon />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Bittensor Tax CSV</h1>
+              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Injective Tax CSV</h1>
               <p className="text-xs text-zinc-500">Export to Awaken.tax format</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="https://taostats.io"
+              href="https://explorer.injective.network"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden text-xs text-zinc-500 hover:text-zinc-400 dark:hover:text-zinc-300 sm:block"
             >
-              Powered by Taostats
+              Injective Explorer
             </a>
             <a
               href="https://github.com/andresdefi/Awaken-vibe-code-challenge"
@@ -115,26 +118,26 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           {/* Hero Section */}
           <div className="mb-10 text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#00F2FE]/10 px-3 py-1 text-xs font-medium text-[#00A8B5]">
               <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#00F2FE] opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-[#00F2FE]" />
               </span>
-              Complete staking & rewards tracking
+              Cosmos DeFi Chain
             </div>
             <h2 className="text-balance text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl">
-              Export Bittensor Transactions
+              Export Injective Transactions
               <br />
-              <span className="text-emerald-600 dark:text-emerald-400">for Tax Reporting</span>
+              <span className="text-[#00A8B5]">for Tax Reporting</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-zinc-600 dark:text-zinc-400">
-              Fetch all transfers, staking events, and emission rewards for any Bittensor wallet.
+              Fetch all transfers, staking rewards, IBC transfers, and trading activity for any Injective wallet.
               Download as a CSV compatible with{" "}
               <a
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-[#00A8B5] hover:underline"
               >
                 Awaken.tax
               </a>
@@ -145,7 +148,9 @@ export default function Home() {
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <FeatureBadge icon={<TransferIcon />} label="Transfers" />
               <FeatureBadge icon={<StakeIcon />} label="Staking" />
-              <FeatureBadge icon={<RewardIcon />} label="Rewards" highlight />
+              <FeatureBadge icon={<RewardIcon />} label="Rewards" />
+              <FeatureBadge icon={<IbcIcon />} label="IBC" />
+              <FeatureBadge icon={<TradeIcon />} label="Trading" highlight />
               <FeatureBadge icon={<PriceIcon />} label="USD Prices" />
             </div>
           </div>
@@ -155,11 +160,11 @@ export default function Home() {
             <WalletInput
               onSubmit={handleFetchTransactions}
               isLoading={isLoading}
-              validateAddress={isValidSS58Address}
-              placeholder="Enter Bittensor wallet address (5...)"
+              validateAddress={isValidInjectiveAddress}
+              placeholder="Enter Injective wallet address (inj1...)"
               exampleAddress={EXAMPLE_ADDRESS}
-              errorMessage="Invalid address format. Bittensor addresses start with '5' and are 46-48 characters."
-              ariaLabel="Bittensor wallet address"
+              errorMessage="Invalid address format. Injective addresses start with 'inj1' and are 43 characters."
+              ariaLabel="Injective wallet address"
             />
           </div>
 
@@ -189,10 +194,10 @@ export default function Home() {
                   <div>
                     <p className="text-xs text-zinc-500">Wallet Address</p>
                     <a
-                      href={`https://taostats.io/coldkey/${data.address}`}
+                      href={`https://explorer.injective.network/account/${data.address}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-mono text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+                      className="font-mono text-sm text-[#00A8B5] hover:underline"
                     >
                       {data.address.slice(0, 12)}...{data.address.slice(-8)}
                     </a>
@@ -203,8 +208,17 @@ export default function Home() {
                     <p className="text-xs text-zinc-500">Total Transactions</p>
                     <p className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{data.transactions.length}</p>
                   </div>
-                  <DownloadButton transactions={data.transactions} address={data.address} />
+                  <DownloadButton transactions={data.transactions} address={data.address} chain="injective" />
                 </div>
+              </div>
+
+              {/* Breakdown Stats */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                <StatCard label="Transfers" value={data.breakdown.transfers} />
+                <StatCard label="Staking" value={data.breakdown.staking} />
+                <StatCard label="Rewards" value={data.breakdown.rewards} />
+                <StatCard label="IBC" value={data.breakdown.ibc} />
+                <StatCard label="Trades" value={data.breakdown.trades} highlight />
               </div>
 
               {/* Transaction Table */}
@@ -220,7 +234,7 @@ export default function Home() {
               </div>
               <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">No transactions found</p>
               <p className="mt-2 text-sm text-zinc-500">
-                This wallet has no transaction history on the Bittensor network.
+                This wallet has no transaction history on the Injective network.
               </p>
             </div>
           )}
@@ -234,6 +248,32 @@ export default function Home() {
               </p>
             </div>
           )}
+
+          {/* Info Box */}
+          <div className="mt-12 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900/30">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">About Injective</h3>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Injective is a Cosmos SDK-based L1 blockchain optimized for DeFi applications. It features an order book-based decentralized exchange for spot and perpetual futures trading.
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-[#00F2FE]" />
+                <strong>21-day unbonding</strong> period for staked INJ
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-[#00F2FE]" />
+                <strong>IBC enabled</strong> for cross-chain transfers
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-[#00F2FE]" />
+                <strong>On-chain order book</strong> for spot and derivatives trading
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-[#00F2FE]" />
+                <strong>18 decimals</strong> (same as Ethereum)
+              </li>
+            </ul>
+          </div>
         </div>
       </main>
 
@@ -247,7 +287,7 @@ export default function Home() {
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-[#00A8B5] hover:underline"
               >
                 Awaken.tax
               </a>{" "}
@@ -255,21 +295,21 @@ export default function Home() {
             </p>
             <div className="flex items-center gap-4">
               <a
-                href="https://taostats.io"
+                href="https://docs.injective.network"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-zinc-700 dark:hover:text-zinc-300"
               >
-                Taostats API
+                Injective Docs
               </a>
               <span className="text-zinc-300 dark:text-zinc-700">|</span>
               <a
-                href="https://bittensor.com"
+                href="https://injective.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-zinc-700 dark:hover:text-zinc-300"
               >
-                Bittensor
+                Injective
               </a>
             </div>
           </div>
@@ -279,12 +319,28 @@ export default function Home() {
   );
 }
 
+// Stat Card Component
+function StatCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-3 ${
+      highlight
+        ? "border-[#00F2FE]/20 bg-[#00F2FE]/5 dark:border-[#00F2FE]/20 dark:bg-[#00F2FE]/5"
+        : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/30"
+    }`}>
+      <p className={`text-xs ${highlight ? "text-[#00A8B5]" : "text-zinc-500"}`}>{label}</p>
+      <p className={`text-lg font-semibold tabular-nums ${
+        highlight ? "text-[#00A8B5]" : "text-zinc-900 dark:text-zinc-100"
+      }`}>{value}</p>
+    </div>
+  );
+}
+
 // Feature Badge Component
 function FeatureBadge({ icon, label, highlight }: { icon: React.ReactNode; label: string; highlight?: boolean }) {
   return (
     <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${
       highlight
-        ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400"
+        ? "bg-[#00F2FE]/10 text-[#00A8B5]"
         : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
     }`}>
       {icon}
@@ -294,12 +350,22 @@ function FeatureBadge({ icon, label, highlight }: { icon: React.ReactNode; label
 }
 
 // Icons
-function TaoIcon() {
+function InjectiveIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-      <circle cx="12" cy="9" r="3" fill="currentColor" />
-      <path d="M12 12v7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-zinc-900">
+      <path
+        d="M12 2L20 7v10l-8 5-8-5V7l8-5z"
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+      />
+      <path
+        d="M12 8v8M8 10l4 6 4-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -327,6 +393,25 @@ function RewardIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    </svg>
+  );
+}
+
+function IbcIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+      <path d="M2 12h20" />
+    </svg>
+  );
+}
+
+function TradeIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="m19 9-5 5-4-4-3 3" />
     </svg>
   );
 }

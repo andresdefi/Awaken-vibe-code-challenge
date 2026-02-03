@@ -7,10 +7,11 @@ import { DownloadButton } from "@/components/download-button";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { TableSkeleton } from "@/components/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { isValidSS58Address } from "@/lib/chains/bittensor/utils";
+import { isValidKusamaAddress } from "@/lib/chains/kusama/utils";
 import type { NormalizedTransaction } from "@/lib/types";
 
-const EXAMPLE_ADDRESS = "5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v";
+// Example Kusama address (active staker with history)
+const EXAMPLE_ADDRESS = "CpjsLDC1JFyrhm3ftC9Gs4QoyrkHKhZKtK7YqGTRFtTafgp";
 
 interface FetchState {
   status: "idle" | "fetching" | "processing" | "complete" | "error";
@@ -22,21 +23,24 @@ interface TransactionData {
   transactions: NormalizedTransaction[];
   breakdown: {
     transfers: number;
-    delegations: number;
-    emissionRewards: number;
+    rewards: number;
+    slashes: number;
+    staking: number;
+    crowdloans: number;
+    auctions: number;
   };
 }
 
-export default function Home() {
+export default function KusamaPage() {
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const [data, setData] = useState<TransactionData | null>(null);
 
   const handleFetchTransactions = useCallback(async (address: string) => {
-    setFetchState({ status: "fetching", message: "Connecting to Taostats API..." });
+    setFetchState({ status: "fetching", message: "Connecting to Subscan API..." });
     setData(null);
 
     try {
-      const response = await fetch(`/api/bittensor/transactions?address=${encodeURIComponent(address)}`);
+      const response = await fetch(`/api/kusama/transactions?address=${encodeURIComponent(address)}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -80,22 +84,22 @@ export default function Home() {
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-xl dark:border-zinc-800/50 dark:bg-zinc-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-600 shadow-lg shadow-emerald-600/20">
-              <TaoIcon />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-zinc-900 shadow-lg shadow-zinc-900/20 dark:bg-zinc-100">
+              <KusamaIcon />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Bittensor Tax CSV</h1>
+              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Kusama Tax CSV</h1>
               <p className="text-xs text-zinc-500">Export to Awaken.tax format</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="https://taostats.io"
+              href="https://kusama.subscan.io"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden text-xs text-zinc-500 hover:text-zinc-400 dark:hover:text-zinc-300 sm:block"
             >
-              Powered by Taostats
+              Powered by Subscan
             </a>
             <a
               href="https://github.com/andresdefi/Awaken-vibe-code-challenge"
@@ -115,26 +119,26 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           {/* Hero Section */}
           <div className="mb-10 text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-zinc-900/10 px-3 py-1 text-xs font-medium text-zinc-900 dark:bg-zinc-100/10 dark:text-zinc-100">
               <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-zinc-900 opacity-75 dark:bg-zinc-100" />
+                <span className="relative inline-flex size-2 rounded-full bg-zinc-900 dark:bg-zinc-100" />
               </span>
-              Complete staking & rewards tracking
+              Polkadot&apos;s Canary Network
             </div>
             <h2 className="text-balance text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl">
-              Export Bittensor Transactions
+              Export Kusama Transactions
               <br />
-              <span className="text-emerald-600 dark:text-emerald-400">for Tax Reporting</span>
+              <span className="text-zinc-600 dark:text-zinc-400">for Tax Reporting</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-zinc-600 dark:text-zinc-400">
-              Fetch all transfers, staking events, and emission rewards for any Bittensor wallet.
+              Fetch all transfers, staking rewards, slashing events, crowdloan contributions, and auction bids for any Kusama wallet.
               Download as a CSV compatible with{" "}
               <a
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-zinc-900 hover:underline dark:text-zinc-100"
               >
                 Awaken.tax
               </a>
@@ -145,7 +149,10 @@ export default function Home() {
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <FeatureBadge icon={<TransferIcon />} label="Transfers" />
               <FeatureBadge icon={<StakeIcon />} label="Staking" />
-              <FeatureBadge icon={<RewardIcon />} label="Rewards" highlight />
+              <FeatureBadge icon={<RewardIcon />} label="Rewards" />
+              <FeatureBadge icon={<SlashIcon />} label="Slashing" />
+              <FeatureBadge icon={<CrowdloanIcon />} label="Crowdloans" highlight />
+              <FeatureBadge icon={<AuctionIcon />} label="Auctions" highlight />
               <FeatureBadge icon={<PriceIcon />} label="USD Prices" />
             </div>
           </div>
@@ -155,11 +162,11 @@ export default function Home() {
             <WalletInput
               onSubmit={handleFetchTransactions}
               isLoading={isLoading}
-              validateAddress={isValidSS58Address}
-              placeholder="Enter Bittensor wallet address (5...)"
+              validateAddress={isValidKusamaAddress}
+              placeholder="Enter Kusama wallet address (C, D, E, F, G, H, J...)"
               exampleAddress={EXAMPLE_ADDRESS}
-              errorMessage="Invalid address format. Bittensor addresses start with '5' and are 46-48 characters."
-              ariaLabel="Bittensor wallet address"
+              errorMessage="Invalid address format. Kusama addresses start with C, D, E, F, G, H, or J and are 47-48 characters."
+              ariaLabel="Kusama wallet address"
             />
           </div>
 
@@ -189,10 +196,10 @@ export default function Home() {
                   <div>
                     <p className="text-xs text-zinc-500">Wallet Address</p>
                     <a
-                      href={`https://taostats.io/coldkey/${data.address}`}
+                      href={`https://kusama.subscan.io/account/${data.address}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-mono text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+                      className="font-mono text-sm text-zinc-900 hover:underline dark:text-zinc-100"
                     >
                       {data.address.slice(0, 12)}...{data.address.slice(-8)}
                     </a>
@@ -203,8 +210,18 @@ export default function Home() {
                     <p className="text-xs text-zinc-500">Total Transactions</p>
                     <p className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{data.transactions.length}</p>
                   </div>
-                  <DownloadButton transactions={data.transactions} address={data.address} />
+                  <DownloadButton transactions={data.transactions} address={data.address} chain="kusama" />
                 </div>
+              </div>
+
+              {/* Breakdown Stats */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <StatCard label="Transfers" value={data.breakdown.transfers} />
+                <StatCard label="Rewards" value={data.breakdown.rewards} />
+                <StatCard label="Slashes" value={data.breakdown.slashes} />
+                <StatCard label="Staking" value={data.breakdown.staking} />
+                <StatCard label="Crowdloans" value={data.breakdown.crowdloans} highlight />
+                <StatCard label="Auctions" value={data.breakdown.auctions} highlight />
               </div>
 
               {/* Transaction Table */}
@@ -220,7 +237,7 @@ export default function Home() {
               </div>
               <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">No transactions found</p>
               <p className="mt-2 text-sm text-zinc-500">
-                This wallet has no transaction history on the Bittensor network.
+                This wallet has no transaction history on the Kusama network.
               </p>
             </div>
           )}
@@ -234,6 +251,33 @@ export default function Home() {
               </p>
             </div>
           )}
+
+          {/* Info Box */}
+          <div className="mt-12 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900/30">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">About Kusama</h3>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Kusama is Polkadot&apos;s canary network - a wild, fast-moving experimental platform where new features are tested before deploying to Polkadot.
+              Key differences from Polkadot include:
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-zinc-400" />
+                <strong>7-day unbonding</strong> period (vs 28 days on Polkadot)
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-zinc-400" />
+                <strong>Faster governance</strong> cycles for rapid iteration
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-zinc-400" />
+                <strong>Lower barriers</strong> for validators and parachains
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-zinc-400" />
+                <strong>Crowdloan</strong> support for parachain slot auctions
+              </li>
+            </ul>
+          </div>
         </div>
       </main>
 
@@ -247,7 +291,7 @@ export default function Home() {
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-zinc-900 hover:underline dark:text-zinc-100"
               >
                 Awaken.tax
               </a>{" "}
@@ -255,21 +299,21 @@ export default function Home() {
             </p>
             <div className="flex items-center gap-4">
               <a
-                href="https://taostats.io"
+                href="https://kusama.subscan.io"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-zinc-700 dark:hover:text-zinc-300"
               >
-                Taostats API
+                Subscan API
               </a>
               <span className="text-zinc-300 dark:text-zinc-700">|</span>
               <a
-                href="https://bittensor.com"
+                href="https://kusama.network"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-zinc-700 dark:hover:text-zinc-300"
               >
-                Bittensor
+                Kusama
               </a>
             </div>
           </div>
@@ -279,12 +323,28 @@ export default function Home() {
   );
 }
 
+// Stat Card Component
+function StatCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-3 ${
+      highlight
+        ? "border-amber-500/20 bg-amber-500/5 dark:border-amber-400/20 dark:bg-amber-400/5"
+        : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/30"
+    }`}>
+      <p className={`text-xs ${highlight ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>{label}</p>
+      <p className={`text-lg font-semibold tabular-nums ${
+        highlight ? "text-amber-700 dark:text-amber-300" : "text-zinc-900 dark:text-zinc-100"
+      }`}>{value}</p>
+    </div>
+  );
+}
+
 // Feature Badge Component
 function FeatureBadge({ icon, label, highlight }: { icon: React.ReactNode; label: string; highlight?: boolean }) {
   return (
     <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${
       highlight
-        ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400"
+        ? "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
         : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
     }`}>
       {icon}
@@ -294,12 +354,14 @@ function FeatureBadge({ icon, label, highlight }: { icon: React.ReactNode; label
 }
 
 // Icons
-function TaoIcon() {
+function KusamaIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-      <circle cx="12" cy="9" r="3" fill="currentColor" />
-      <path d="M12 12v7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white dark:text-zinc-900">
+      <path
+        d="M12 2L4 6v12l8 4 8-4V6l-8-4zm0 2.5L18 8v8l-6 3-6-3V8l6-3.5z"
+        fill="currentColor"
+      />
+      <circle cx="12" cy="12" r="3" fill="currentColor" />
     </svg>
   );
 }
@@ -327,6 +389,36 @@ function RewardIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    </svg>
+  );
+}
+
+function SlashIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 2 2 22" />
+      <circle cx="12" cy="12" r="10" />
+    </svg>
+  );
+}
+
+function CrowdloanIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function AuctionIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m14.5 12.5-5 5a2.121 2.121 0 1 1-3-3l5-5" />
+      <path d="M16 10V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12" />
+      <path d="m21.64 15.36-3.5-3.5a1 1 0 0 0-1.41 0l-1.83 1.83 4.91 4.91 1.83-1.83a1 1 0 0 0 0-1.41z" />
     </svg>
   );
 }
