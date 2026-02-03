@@ -13,6 +13,9 @@ const CHAIN_LOGOS: Record<string, string> = {
   extended: "/logos/extended.svg", // Local official asset
   dydx: "https://s2.coinmarketcap.com/static/img/coins/64x64/28324.png",
   canton: "https://www.canton.network/hubfs/canton-logo-black.svg",
+  hedera: "https://s2.coinmarketcap.com/static/img/coins/64x64/4642.png",
+  xrpl: "https://s2.coinmarketcap.com/static/img/coins/64x64/52.png",
+  kava: "https://s2.coinmarketcap.com/static/img/coins/64x64/4846.png",
 };
 
 // Fallback colors for chains without logos
@@ -26,6 +29,9 @@ const CHAIN_COLORS: Record<string, string> = {
   extended: "#EC796B",
   dydx: "#6966FF",
   canton: "#4A90D9",
+  hedera: "#000000",
+  xrpl: "#23292F",
+  kava: "#FF564F",
 };
 
 interface ChainLogoProps {
@@ -78,6 +84,9 @@ export const CHAIN_NAMES: Record<string, string> = {
   extended: "Extended",
   dydx: "dYdX",
   canton: "Canton Network",
+  hedera: "Hedera",
+  xrpl: "XRP Ledger",
+  kava: "Kava",
 };
 
 // Chain symbols mapping
@@ -91,6 +100,9 @@ export const CHAIN_SYMBOLS: Record<string, string> = {
   extended: "PERPS",
   dydx: "DYDX",
   canton: "CC",
+  hedera: "HBAR",
+  xrpl: "XRP",
+  kava: "KAVA",
 };
 
 // Chain descriptions
@@ -104,4 +116,7 @@ export const CHAIN_DESCRIPTIONS: Record<string, string> = {
   extended: "Export perpetuals trades, positions, and funding payments",
   dydx: "Export perpetuals trades, positions, and funding payments",
   canton: "Export Canton Coin transfers, rewards, and fees",
+  hedera: "Export HBAR transfers, staking rewards, and token transactions",
+  xrpl: "Export XRP transfers, DEX trades, NFTs, AMM, and escrow",
+  kava: "Export KAVA transfers, staking, CDP, lending, swaps, and rewards",
 };

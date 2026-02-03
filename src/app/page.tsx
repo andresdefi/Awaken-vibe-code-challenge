@@ -17,6 +17,11 @@ interface ChainConfig {
   inputHelp: string;
   warning?: string;
   isPerps: boolean;
+  secondaryInput?: {
+    label: string;
+    placeholder: string;
+    help: string;
+  };
 }
 
 const CHAINS: ChainConfig[] = [
@@ -102,6 +107,38 @@ const CHAINS: ChainConfig[] = [
     inputHelp: "Enter your Canton Network participant ID",
     isPerps: false,
   },
+  {
+    id: "hedera",
+    features: ["Transfers", "Staking Rewards", "HTS Tokens", "NFTs", "USD Prices"],
+    inputType: "address",
+    inputLabel: "Hedera Account ID",
+    inputPlaceholder: "0.0.12345",
+    inputHelp: "Enter your Hedera account ID in format 0.0.xxxxx",
+    isPerps: false,
+  },
+  {
+    id: "xrpl",
+    features: ["Transfers", "DEX Trades", "NFTs", "AMM", "Escrow", "USD Prices"],
+    inputType: "address",
+    inputLabel: "XRP Address",
+    inputPlaceholder: "rN7n3473SaZBCG4dFL83w7a1RXtXtbDK8d",
+    inputHelp: "Enter your XRP Ledger address starting with 'r'",
+    isPerps: false,
+  },
+  {
+    id: "kava",
+    features: ["Transfers", "Staking", "CDP/USDX", "Lending", "Swaps", "Rewards", "EVM Tokens", "USD Prices"],
+    inputType: "address",
+    inputLabel: "Kava Address",
+    inputPlaceholder: "kava1...",
+    inputHelp: "Enter your Kava address starting with 'kava1'",
+    isPerps: false,
+    secondaryInput: {
+      label: "EVM Address (Optional)",
+      placeholder: "0x...",
+      help: "Optional: Add your Kava EVM address (0x...) to include ERC-20 token transfers",
+    },
+  },
 ];
 
 interface FetchState {
@@ -125,6 +162,7 @@ export default function Home() {
   const [selectedChain, setSelectedChain] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [secondaryInputValue, setSecondaryInputValue] = useState("");
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const [transactions, setTransactions] = useState<(PerpsTransaction | NormalizedTransaction)[]>([]);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
@@ -135,6 +173,7 @@ export default function Home() {
     setSelectedChain(chainId);
     setIsDropdownOpen(false);
     setInputValue("");
+    setSecondaryInputValue("");
     setFetchState({ status: "idle" });
     setTransactions([]);
     setSummary(null);
@@ -157,9 +196,14 @@ export default function Home() {
       setSummary(null);
 
       try {
-        const body = selectedChainConfig.inputType === "apiKey"
+        const body: Record<string, string> = selectedChainConfig.inputType === "apiKey"
           ? { apiKey: inputValue.trim() }
           : { address: inputValue.trim() };
+
+        // Add secondary input if provided (e.g., EVM address for Kava)
+        if (secondaryInputValue.trim() && selectedChainConfig.secondaryInput) {
+          body.evmAddress = secondaryInputValue.trim();
+        }
 
         const response = await fetch(`/api/${selectedChain}/transactions`, {
           method: "POST",
@@ -197,7 +241,7 @@ export default function Home() {
         });
       }
     },
-    [inputValue, selectedChain, selectedChainConfig]
+    [inputValue, secondaryInputValue, selectedChain, selectedChainConfig]
   );
 
   const handleDownloadCSV = useCallback(() => {
@@ -388,6 +432,26 @@ export default function Home() {
                 <p className="mt-2 text-xs text-[var(--muted)]">
                   {selectedChainConfig.inputHelp}
                 </p>
+                {selectedChainConfig.secondaryInput && (
+                  <div className="mt-4 border-t border-[var(--border)] pt-4">
+                    <label htmlFor="secondaryInput" className="mb-1 block text-sm font-medium text-[var(--foreground)]">
+                      {selectedChainConfig.secondaryInput.label}
+                    </label>
+                    <input
+                      id="secondaryInput"
+                      type="text"
+                      value={secondaryInputValue}
+                      onChange={(e) => setSecondaryInputValue(e.target.value)}
+                      placeholder={selectedChainConfig.secondaryInput.placeholder}
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3 font-mono text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20"
+                      disabled={isLoading}
+                      aria-label={selectedChainConfig.secondaryInput.label}
+                    />
+                    <p className="mt-2 text-xs text-[var(--muted)]">
+                      {selectedChainConfig.secondaryInput.help}
+                    </p>
+                  </div>
+                )}
                 {selectedChainConfig.warning && (
                   <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
                     <WarningIcon className="mt-0.5 shrink-0 text-red-500" />
