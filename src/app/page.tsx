@@ -1,122 +1,262 @@
 "use client";
 
-import Link from "next/link";
+import { useState, useCallback, FormEvent } from "react";
+import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { ChainConfig } from "@/lib/types";
+import { ProgressIndicator } from "@/components/progress-indicator";
+import { ChainLogo, CHAIN_NAMES, CHAIN_SYMBOLS, CHAIN_DESCRIPTIONS } from "@/components/chain-logo";
+import type { PerpsTransaction, NormalizedTransaction } from "@/lib/types";
+import { generateAwakenPerpsCSV, generateAwakenCSV } from "@/lib/csv";
+
+interface ChainConfig {
+  id: string;
+  features: string[];
+  inputType: "address" | "apiKey";
+  inputLabel: string;
+  inputPlaceholder: string;
+  inputHelp: string;
+  warning?: string;
+  isPerps: boolean;
+}
 
 const CHAINS: ChainConfig[] = [
   {
     id: "bittensor",
-    name: "Bittensor",
-    symbol: "TAO",
-    icon: "τ",
-    description: "Export transfers, staking events, and emission rewards",
     features: ["Transfers", "Staking", "Emission Rewards", "USD Prices"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "Bittensor Wallet Address",
+    inputPlaceholder: "5...",
+    inputHelp: "Enter your Bittensor (TAO) wallet address starting with 5",
+    warning: "Bittensor API has strict rate limits. Fetching may take longer for wallets with many transactions.",
+    isPerps: false,
   },
   {
     id: "polkadot",
-    name: "Polkadot",
-    symbol: "DOT",
-    icon: "●",
-    description: "Export transfers, staking rewards, and slashing events",
     features: ["Transfers", "Staking", "Rewards", "Slashing", "USD Prices"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "Polkadot Wallet Address",
+    inputPlaceholder: "1...",
+    inputHelp: "Enter your Polkadot (DOT) wallet address",
+    isPerps: false,
   },
   {
     id: "kusama",
-    name: "Kusama",
-    symbol: "KSM",
-    icon: "◆",
-    description: "Export transfers, staking, crowdloans, and auction bids",
     features: ["Transfers", "Staking", "Crowdloans", "Auctions", "USD Prices"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "Kusama Wallet Address",
+    inputPlaceholder: "C... or D... or F...",
+    inputHelp: "Enter your Kusama (KSM) wallet address",
+    isPerps: false,
   },
   {
     id: "osmosis",
-    name: "Osmosis",
-    symbol: "OSMO",
-    icon: "⚗",
-    description: "Export transfers, swaps, LP positions, and staking rewards",
     features: ["Transfers", "Swaps", "LP Positions", "Staking", "IBC", "USD Prices"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "Osmosis Wallet Address",
+    inputPlaceholder: "osmo1...",
+    inputHelp: "Enter your Osmosis wallet address starting with osmo1",
+    isPerps: false,
   },
   {
     id: "injective",
-    name: "Injective",
-    symbol: "INJ",
-    icon: "◇",
-    description: "Export transfers, staking, IBC, and trading activity",
     features: ["Transfers", "Staking", "IBC", "Trading", "USD Prices"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "Injective Wallet Address",
+    inputPlaceholder: "inj1...",
+    inputHelp: "Enter your Injective wallet address starting with inj1",
+    isPerps: false,
   },
   {
     id: "ronin",
-    name: "Ronin",
-    symbol: "RON",
-    icon: "⬡",
-    description: "Export transfers, swaps, NFT trades, and gaming transactions",
     features: ["Transfers", "Swaps", "NFTs", "Staking", "Gaming", "USD Prices"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "Ronin Wallet Address",
+    inputPlaceholder: "0x... or ronin:...",
+    inputHelp: "Enter your Ronin wallet address",
+    isPerps: false,
   },
   {
     id: "extended",
-    name: "Extended",
-    symbol: "PERPS",
-    icon: "◈",
-    description: "Export perpetuals trades, positions, and funding payments",
-    features: ["Trades", "Positions", "Funding", "P&L", "API Key Required"],
-    enabled: true,
+    features: ["Trades", "Positions", "Funding", "P&L"],
+    inputType: "apiKey",
+    inputLabel: "Extended API Key",
+    inputPlaceholder: "Enter your Extended API key",
+    inputHelp: "Create an API key in your Extended account settings. No Stark key required.",
+    isPerps: true,
   },
   {
     id: "dydx",
-    name: "dYdX",
-    symbol: "DYDX",
-    icon: "◆",
-    description: "Export perpetuals trades, positions, and funding payments",
     features: ["Trades", "Positions", "Funding", "P&L", "No API Key"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "dYdX Wallet Address",
+    inputPlaceholder: "dydx1...",
+    inputHelp: "Enter your dYdX v4 wallet address starting with dydx1",
+    isPerps: true,
   },
   {
     id: "canton",
-    name: "Canton Network",
-    symbol: "CC",
-    icon: "◎",
-    description: "Export Canton Coin transfers, rewards, and fees",
     features: ["Transfers", "Rewards", "Fees", "Locked CC"],
-    enabled: true,
+    inputType: "address",
+    inputLabel: "Canton Participant ID",
+    inputPlaceholder: "Enter your participant ID",
+    inputHelp: "Enter your Canton Network participant ID",
+    isPerps: false,
   },
 ];
 
+interface FetchState {
+  status: "idle" | "fetching" | "processing" | "complete" | "error";
+  message?: string;
+}
+
+interface TransactionSummary {
+  totalTrades?: number;
+  openPositions?: number;
+  closePositions?: number;
+  fundingPayments?: number;
+  totalPnL?: number;
+  totalFees?: number;
+  tradedAssets?: string[];
+  subaccounts?: number;
+  totalTransactions?: number;
+}
+
 export default function Home() {
+  const [selectedChain, setSelectedChain] = useState<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
+  const [transactions, setTransactions] = useState<(PerpsTransaction | NormalizedTransaction)[]>([]);
+  const [summary, setSummary] = useState<TransactionSummary | null>(null);
+
+  const selectedChainConfig = CHAINS.find((c) => c.id === selectedChain);
+
+  const handleChainSelect = (chainId: string) => {
+    setSelectedChain(chainId);
+    setIsDropdownOpen(false);
+    setInputValue("");
+    setFetchState({ status: "idle" });
+    setTransactions([]);
+    setSummary(null);
+  };
+
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+
+      if (!inputValue.trim() || !selectedChainConfig) {
+        setFetchState({
+          status: "error",
+          message: `Please enter your ${selectedChainConfig?.inputLabel.toLowerCase() || "input"}`,
+        });
+        return;
+      }
+
+      setFetchState({ status: "fetching", message: `Connecting to ${CHAIN_NAMES[selectedChain]}...` });
+      setTransactions([]);
+      setSummary(null);
+
+      try {
+        const body = selectedChainConfig.inputType === "apiKey"
+          ? { apiKey: inputValue.trim() }
+          : { address: inputValue.trim() };
+
+        const response = await fetch(`/api/${selectedChain}/transactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || errorData.details || "Failed to fetch transactions");
+        }
+
+        setFetchState({ status: "processing", message: "Processing transactions..." });
+
+        const result = await response.json();
+
+        // Parse dates from the response
+        const txs = result.transactions.map((tx: PerpsTransaction & NormalizedTransaction & { date?: string; timestamp?: string }) => ({
+          ...tx,
+          date: tx.date ? new Date(tx.date) : undefined,
+          timestamp: tx.timestamp ? new Date(tx.timestamp) : undefined,
+        }));
+
+        setTransactions(txs);
+        setSummary(result.summary);
+
+        setFetchState({
+          status: "complete",
+          message: `Found ${txs.length} transactions`,
+        });
+      } catch (error) {
+        setFetchState({
+          status: "error",
+          message: error instanceof Error ? error.message : "An unexpected error occurred",
+        });
+      }
+    },
+    [inputValue, selectedChain, selectedChainConfig]
+  );
+
+  const handleDownloadCSV = useCallback(() => {
+    if (!transactions.length || !selectedChainConfig) return;
+
+    let csv: string;
+    let filename: string;
+
+    if (selectedChainConfig.isPerps) {
+      csv = generateAwakenPerpsCSV(transactions as PerpsTransaction[]);
+      filename = `${selectedChain}-perps-awaken.csv`;
+    } else {
+      csv = generateAwakenCSV(transactions as NormalizedTransaction[]);
+      filename = `${selectedChain}-awaken.csv`;
+    }
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [transactions, selectedChain, selectedChainConfig]);
+
+  const isLoading = fetchState.status === "fetching" || fetchState.status === "processing";
+
   return (
-    <div className="flex min-h-dvh flex-col bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex min-h-dvh flex-col bg-[var(--background)]">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-xl dark:border-zinc-800/50 dark:bg-zinc-950/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+      <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-600 shadow-lg shadow-emerald-600/20">
-              <span className="text-lg font-bold text-white">A</span>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Awaken Tax CSV</h1>
-              <p className="text-xs text-zinc-500">Multi-chain transaction exporter</p>
-            </div>
+            <Image
+              src="/logos/awaken.png"
+              alt="Awaken"
+              width={32}
+              height={32}
+              className="rounded-full"
+            />
+            <span className="text-lg font-semibold text-[var(--foreground)]">Awaken CSV</span>
           </div>
           <div className="flex items-center gap-3">
             <a
               href="https://awaken.tax"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden text-xs text-zinc-500 hover:text-zinc-400 dark:hover:text-zinc-300 sm:block"
+              className="hidden text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)] sm:block"
             >
-              For Awaken.tax
+              Awaken.tax
             </a>
             <a
               href="https://github.com/andresdefi/Awaken-vibe-code-challenge"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg bg-zinc-200 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="rounded-lg bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-[var(--background)] transition-colors hover:opacity-90"
             >
               GitHub
             </a>
@@ -126,136 +266,343 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          {/* Hero Section */}
-          <div className="mb-12 text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-              </span>
-              Open source tax CSV exporter
-            </div>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl">
+      <main className="flex-1 px-4 py-12">
+        <div className="mx-auto max-w-2xl">
+          {/* Hero */}
+          <div className="text-center">
+            <h1 className="text-balance text-3xl font-semibold tracking-tight text-[var(--foreground)] sm:text-4xl">
               Export Crypto Transactions
               <br />
-              <span className="text-emerald-600 dark:text-emerald-400">for Tax Reporting</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-pretty text-zinc-600 dark:text-zinc-400">
-              Fetch wallet transactions from multiple blockchains and export them in{" "}
+              <span className="text-[var(--accent)]">for Tax Reporting</span>
+            </h1>
+            <p className="mx-auto mt-4 max-w-lg text-pretty text-[var(--muted)]">
+              Select a blockchain, enter your wallet address, and download transactions in{" "}
               <a
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-[var(--accent)] hover:underline"
               >
                 Awaken.tax
               </a>{" "}
-              CSV format for easy tax reporting.
+              CSV format.
             </p>
           </div>
 
-          {/* Chain Cards */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {CHAINS.map((chain) => (
-              <ChainCard key={chain.id} chain={chain} />
-            ))}
+          {/* Chain Selector */}
+          <div className="mt-10">
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+              1. Select blockchain
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-4 text-left shadow-sm transition-all hover:border-[var(--accent)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20"
+              >
+                {selectedChain ? (
+                  <div className="flex items-center gap-3">
+                    <ChainLogo chainId={selectedChain} size={28} />
+                    <div>
+                      <span className="font-medium text-[var(--foreground)]">
+                        {CHAIN_NAMES[selectedChain]}
+                      </span>
+                      <span className="ml-2 text-sm text-[var(--muted)]">
+                        {CHAIN_SYMBOLS[selectedChain]}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-[var(--muted)]">Select a blockchain...</span>
+                )}
+                <ChevronDownIcon className={`size-5 text-[var(--muted)] transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute top-full z-10 mt-2 max-h-80 w-full overflow-auto rounded-xl border border-[var(--border)] bg-[var(--card)] py-2 shadow-lg">
+                  {CHAINS.map((chain) => (
+                    <button
+                      key={chain.id}
+                      type="button"
+                      onClick={() => handleChainSelect(chain.id)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--card-hover)] ${
+                        selectedChain === chain.id ? "bg-[var(--accent-muted)]" : ""
+                      }`}
+                    >
+                      <ChainLogo chainId={chain.id} size={32} />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-[var(--foreground)]">
+                            {CHAIN_NAMES[chain.id]}
+                          </span>
+                          <span className="text-sm text-[var(--muted)]">
+                            {CHAIN_SYMBOLS[chain.id]}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-sm text-[var(--muted)]">
+                          {CHAIN_DESCRIPTIONS[chain.id]}
+                        </p>
+                      </div>
+                      {selectedChain === chain.id && (
+                        <CheckIcon className="size-5 text-[var(--accent)]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected Chain Features */}
+            {selectedChainConfig && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedChainConfig.features.map((feature) => (
+                  <span
+                    key={feature}
+                    className="rounded-full bg-[var(--accent-muted)] px-2.5 py-1 text-xs font-medium text-[var(--accent)]"
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Info Section */}
-          <div className="mt-12 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900/30">
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">How it works</h3>
-            <ol className="mt-4 space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
-              <li className="flex gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">1</span>
-                <span>Select a blockchain and enter your wallet address</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">2</span>
-                <span>We fetch all transactions including transfers, staking, and rewards</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">3</span>
-                <span>Download the CSV file formatted for Awaken.tax</span>
-              </li>
-            </ol>
-          </div>
+          {/* Input Form - appears after chain selection */}
+          {selectedChainConfig && (
+            <form onSubmit={handleSubmit} className="mt-8">
+              <label htmlFor="walletInput" className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+                2. {selectedChainConfig.inputLabel}
+              </label>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
+                <input
+                  id="walletInput"
+                  type={selectedChainConfig.inputType === "apiKey" ? "password" : "text"}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder={selectedChainConfig.inputPlaceholder}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3 font-mono text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20"
+                  disabled={isLoading}
+                  aria-label={selectedChainConfig.inputLabel}
+                />
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  {selectedChainConfig.inputHelp}
+                </p>
+                {selectedChainConfig.warning && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+                    <WarningIcon className="mt-0.5 shrink-0 text-red-500" />
+                    <p className="text-xs font-medium text-red-600">
+                      {selectedChainConfig.warning}
+                    </p>
+                  </div>
+                )}
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isLoading || !inputValue.trim()}
+                    className="rounded-lg bg-[var(--foreground)] px-6 py-2.5 text-sm font-medium text-[var(--background)] transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isLoading ? "Fetching..." : "Fetch Transactions"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* Progress Indicator */}
+          {fetchState.status !== "idle" && fetchState.status !== "complete" && (
+            <div className="mt-6">
+              <ProgressIndicator status={fetchState.status} message={fetchState.message} />
+            </div>
+          )}
+
+          {/* Error State */}
+          {fetchState.status === "error" && (
+            <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center">
+              <p className="text-red-500">{fetchState.message}</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Please check your input and try again.
+              </p>
+            </div>
+          )}
+
+          {/* Results */}
+          {transactions.length > 0 && fetchState.status === "complete" && (
+            <div className="mt-8 space-y-4">
+              {/* Summary & Download */}
+              <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
+                <div>
+                  <p className="text-sm text-[var(--muted)]">Found</p>
+                  <p className="text-2xl font-semibold tabular-nums text-[var(--foreground)]">
+                    {transactions.length} transactions
+                  </p>
+                  {summary?.totalPnL !== undefined && (
+                    <p className={`text-sm font-medium tabular-nums ${summary.totalPnL >= 0 ? "text-green-600" : "text-red-500"}`}>
+                      P&L: {summary.totalPnL >= 0 ? "+" : ""}{summary.totalPnL.toFixed(2)} USDC
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={handleDownloadCSV}
+                  className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-medium text-white transition-all hover:opacity-90"
+                >
+                  <DownloadIcon />
+                  Download CSV
+                </button>
+              </div>
+
+              {/* Quick Stats */}
+              {summary && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {summary.totalTrades !== undefined && (
+                    <StatCard label="Trades" value={summary.totalTrades} />
+                  )}
+                  {summary.openPositions !== undefined && (
+                    <StatCard label="Opens" value={summary.openPositions} />
+                  )}
+                  {summary.closePositions !== undefined && (
+                    <StatCard label="Closes" value={summary.closePositions} />
+                  )}
+                  {summary.fundingPayments !== undefined && (
+                    <StatCard label="Funding" value={summary.fundingPayments} />
+                  )}
+                  {summary.totalFees !== undefined && (
+                    <StatCard label="Fees" value={`$${summary.totalFees.toFixed(2)}`} isString />
+                  )}
+                  {summary.tradedAssets && summary.tradedAssets.length > 0 && (
+                    <div className="col-span-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-3">
+                      <p className="text-xs text-[var(--muted)]">Assets</p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {summary.tradedAssets.map((asset) => (
+                          <span key={asset} className="rounded bg-[var(--accent-muted)] px-1.5 py-0.5 text-xs font-medium text-[var(--accent)]">
+                            {asset}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Transaction Preview */}
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+                <p className="mb-3 text-sm font-medium text-[var(--foreground)]">Preview (first 10)</p>
+                <div className="space-y-2 text-xs">
+                  {transactions.slice(0, 10).map((tx, i) => {
+                    const date = 'date' in tx ? tx.date : ('timestamp' in tx ? tx.timestamp : null);
+                    const asset = 'asset' in tx ? tx.asset : ('sentCurrency' in tx ? tx.sentCurrency || tx.receivedCurrency : '');
+                    return (
+                      <div key={i} className="flex items-center justify-between rounded-lg bg-[var(--background)] px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[var(--muted)]">
+                            {date ? new Date(date).toLocaleDateString() : '-'}
+                          </span>
+                          <span className="font-medium text-[var(--foreground)]">{asset}</span>
+                        </div>
+                        {'tag' in tx && (
+                          <span className="rounded-full bg-[var(--accent-muted)] px-2 py-0.5 text-[var(--accent)]">
+                            {String(tx.tag).replace("_", " ")}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {transactions.length > 10 && (
+                  <p className="mt-3 text-center text-xs text-[var(--muted)]">
+                    +{transactions.length - 10} more transactions in CSV
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {transactions.length === 0 && fetchState.status === "complete" && (
+            <div className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 text-center">
+              <p className="text-lg font-medium text-[var(--foreground)]">No transactions found</p>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                This {selectedChainConfig?.inputType === "apiKey" ? "account" : "address"} has no transaction history.
+              </p>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200 bg-zinc-100/50 dark:border-zinc-800/50 dark:bg-zinc-900/30">
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-          <div className="flex flex-col items-center justify-between gap-4 text-sm text-zinc-500 sm:flex-row">
+      <footer className="border-t border-[var(--border)] bg-[var(--card)]">
+        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+          <div className="flex flex-col items-center justify-between gap-4 text-sm text-[var(--muted)] sm:flex-row">
             <p>
-              Built for the{" "}
+              Built for{" "}
               <a
                 href="https://awaken.tax"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-600 hover:underline dark:text-emerald-400"
+                className="text-[var(--accent)] hover:underline"
               >
                 Awaken.tax
-              </a>{" "}
-              vibe coding challenge
+              </a>
             </p>
-            <p className="text-xs">
-              Open source • MIT License
-            </p>
+            <p className="text-xs">Open source • MIT License</p>
           </div>
         </div>
       </footer>
+
+      {/* Click outside to close dropdown */}
+      {isDropdownOpen && (
+        <div
+          className="fixed inset-0 z-0"
+          onClick={() => setIsDropdownOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-function ChainCard({ chain }: { chain: ChainConfig }) {
-  const content = (
-    <div className={`group relative rounded-xl border p-6 transition-all ${
-      chain.enabled
-        ? "border-zinc-200 bg-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/5 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:border-emerald-500/50"
-        : "border-zinc-200 bg-zinc-100 opacity-60 dark:border-zinc-800 dark:bg-zinc-900/20"
-    }`}>
-      <div className="flex items-start justify-between">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-zinc-100 text-2xl dark:bg-zinc-800">
-          {chain.icon}
-        </div>
-        {!chain.enabled && (
-          <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800">
-            Coming Soon
-          </span>
-        )}
-      </div>
-      <h3 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-        {chain.name}
-        <span className="ml-2 text-sm font-normal text-zinc-500">{chain.symbol}</span>
-      </h3>
-      <p className="mt-1 text-sm text-zinc-500">{chain.description}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {chain.features.map((feature) => (
-          <span
-            key={feature}
-            className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-          >
-            {feature}
-          </span>
-        ))}
-      </div>
-      {chain.enabled && (
-        <div className="mt-4 flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400">
-          Export transactions
-          <svg className="ml-1 size-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
-      )}
+function StatCard({ label, value, isString }: { label: string; value: number | string; isString?: boolean }) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3">
+      <p className="text-xs text-[var(--muted)]">{label}</p>
+      <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--foreground)]">
+        {isString ? value : value.toLocaleString()}
+      </p>
     </div>
   );
+}
 
-  if (chain.enabled) {
-    return <Link href={`/${chain.id}`}>{content}</Link>;
-  }
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
 
-  return content;
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" x2="12" y1="15" y2="3" />
+    </svg>
+  );
+}
+
+function WarningIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
 }

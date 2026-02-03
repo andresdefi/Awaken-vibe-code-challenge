@@ -3,28 +3,30 @@
 /* Configure dark mode to use .dark class instead of prefers-color-scheme */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Light mode (default) */
+/* Light mode (default) - Awaken.tax inspired */
 :root {
-  --background: #fafafa;
-  --foreground: #18181b;
-  --muted: #71717a;
-  --border: #e4e4e7;
-  --card: #ffffff;
-  --card-hover: #f4f4f5;
-  --accent: #10b981;
-  --accent-muted: rgba(16, 185, 129, 0.1);
+  --background: #F5F0EA;
+  --foreground: #292524;
+  --muted: #78716C;
+  --border: #E7E5E4;
+  --card: #FFFFFF;
+  --card-hover: #FAFAF9;
+  --accent: #E87A2E;
+  --accent-muted: rgba(232, 122, 46, 0.1);
+  --success: #16A34A;
 }
 
 /* Dark mode */
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --muted: #a1a1aa;
-  --border: #27272a;
-  --card: #18181b;
-  --card-hover: #27272a;
-  --accent: #10b981;
-  --accent-muted: rgba(16, 185, 129, 0.15);
+  --background: #1C1917;
+  --foreground: #F5F5F4;
+  --muted: #A8A29E;
+  --border: #44403C;
+  --card: #292524;
+  --card-hover: #3D3835;
+  --accent: #F59E0B;
+  --accent-muted: rgba(245, 158, 11, 0.15);
+  --success: #22C55E;
 }
 
 @theme inline {
@@ -36,6 +38,7 @@
   --color-card-hover: var(--card-hover);
   --color-accent: var(--accent);
   --color-accent-muted: var(--accent-muted);
+  --color-success: var(--success);
   --font-sans: var(--font-inter), system-ui, sans-serif;
 }
 
@@ -52,6 +55,7 @@ body {
 
 ::-webkit-scrollbar-track {
   background: var(--card);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
