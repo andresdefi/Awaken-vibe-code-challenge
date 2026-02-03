@@ -139,6 +139,15 @@ const CHAINS: ChainConfig[] = [
       help: "Optional: Add your Kava EVM address (0x...) to include ERC-20 token transfers",
     },
   },
+  {
+    id: "stellar",
+    features: ["Transfers", "DEX Trades", "Liquidity Pools", "Path Payments", "Claimable Balances", "USD Prices"],
+    inputType: "address",
+    inputLabel: "Stellar Address",
+    inputPlaceholder: "GCZST3XVCDTUJ76ZAV2HA72KYPRPMK5V54ZFZAKBNRVVVBXJSKHVD6ZT",
+    inputHelp: "Enter your Stellar address starting with 'G'",
+    isPerps: false,
+  },
 ];
 
 interface FetchState {

@@ -30,7 +30,7 @@ Multi-chain transaction exporter for [Awaken.tax](https://awaken.tax) CSV format
 >
 > And link to it for our 30k+ users.
 
-## Supported Chains (12 Integrations)
+## Supported Chains (13 Integrations)
 
 | Chain | Type | Features | API Key Required |
 |-------|------|----------|------------------|
@@ -43,6 +43,7 @@ Multi-chain transaction exporter for [Awaken.tax](https://awaken.tax) CSV format
 | Hedera (HBAR) | L1 | Transfers, Staking Rewards, HTS Tokens, NFTs, USD Prices | No |
 | XRP Ledger (XRP) | L1 | Transfers, DEX Trades, NFTs, AMM, Escrow, USD Prices | No |
 | Kava (KAVA) | Cosmos+EVM | Transfers, Staking, CDP, Lending, Swaps, Rewards, USD Prices | No |
+| Stellar (XLM) | L1 | Transfers, DEX Trades, Liquidity Pools, Path Payments, USD Prices | No |
 | Extended | Perps | Trades, Positions, Funding, P&L | Yes (API Key) |
 | dYdX v4 (DYDX) | Perps | Trades, Positions, Funding, P&L | No |
 | Canton Network (CC) | Enterprise | Transfers, Rewards, Fees, Locked CC | No |
@@ -55,7 +56,7 @@ Multi-chain transaction exporter for [Awaken.tax](https://awaken.tax) CSV format
 
 ## Features
 
-- **12 Chain Integrations** - Diverse ecosystems including L1s, Cosmos, EVM, and Perps DEXs
+- **13 Chain Integrations** - Diverse ecosystems including L1s, Cosmos, EVM, and Perps DEXs
 - **Unified UI** - Single-page flow with dropdown chain selector
 - **Awaken Branding** - Matches Awaken.tax color scheme and styling
 - **Two CSV Formats** - Standard format + Perps/Futures format
@@ -370,6 +371,31 @@ For perps trading (Extended, dYdX). See [Perps CSV Format Guide](https://help.aw
 
 ---
 
+### Stellar (XLM)
+
+| Event | Tag |
+|-------|-----|
+| XLM Sent | `payment` |
+| XLM Received | `receive` |
+| Token Sent | `payment` |
+| Token Received | `receive` |
+| Path Payment (cross-asset) | `trade` |
+| DEX Sell Offer | `trade` |
+| DEX Buy Offer | `trade` |
+| Liquidity Pool Deposit | `payment` |
+| Liquidity Pool Withdraw | `receive` |
+| Create Claimable Balance | `staking_deposit` |
+| Claim Claimable Balance | `receive` |
+| Account Merge | `receive` |
+| Create Account | `payment` |
+| Change Trust (trustline) | `payment` |
+| Inflation (historical) | `claim_rewards` |
+
+**API:** Stellar Horizon API (horizon.stellar.org)
+**Rate Limit:** Permissive (no strict limits)
+
+---
+
 ## Project Structure
 
 ```
@@ -388,7 +414,8 @@ src/
 │       ├── dydx/transactions/
 │       ├── canton/transactions/
 │       ├── xrpl/transactions/
-│       └── kava/transactions/
+│       ├── kava/transactions/
+│       └── stellar/transactions/
 ├── components/
 │   ├── chain-logo.tsx              # Chain logos with fallbacks
 │   ├── theme-toggle.tsx            # Dark/light mode
@@ -408,7 +435,8 @@ src/
         ├── dydx/
         ├── canton/
         ├── xrpl/
-        └── kava/
+        ├── kava/
+        └── stellar/
 ```
 
 ---
@@ -440,3 +468,4 @@ MIT License - Open source for the community
 - [Hedera](https://hedera.com) for the Mirror Node API
 - [XRP Ledger](https://xrpl.org) for the public API servers
 - [Kava](https://www.kava.io) for the archive API servers
+- [Stellar](https://stellar.org) for the Horizon API
