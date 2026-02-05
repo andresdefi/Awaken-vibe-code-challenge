@@ -1,5 +1,6 @@
 export const EXPLORER_URLS: Record<string, string> = {
   bittensor: "https://taostats.io/extrinsic/",
+  kaspa: "https://explorer.kaspa.org/txs/",
   polkadot: "https://polkadot.subscan.io/extrinsic/",
   kusama: "https://kusama.subscan.io/extrinsic/",
   osmosis: "https://www.mintscan.io/osmosis/tx/",

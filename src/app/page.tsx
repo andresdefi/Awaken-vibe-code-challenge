@@ -42,6 +42,15 @@ const CHAINS: ChainConfig[] = [
     isPerps: false,
   },
   {
+    id: "kaspa",
+    features: ["Transfers", "Mining Rewards", "USD Prices"],
+    inputType: "address",
+    inputLabel: "Kaspa Wallet Address",
+    inputPlaceholder: "kaspa:qp...",
+    inputHelp: "Enter your Kaspa (KAS) wallet address starting with 'kaspa:'",
+    isPerps: false,
+  },
+  {
     id: "polkadot",
     features: ["Transfers", "Staking", "Rewards", "Slashing", "USD Prices"],
     inputType: "address",

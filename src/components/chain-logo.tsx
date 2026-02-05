@@ -5,6 +5,7 @@ import Image from "next/image";
 // Chain logo URLs from official/reliable sources
 const CHAIN_LOGOS: Record<string, string> = {
   bittensor: "/logos/bittensor.png", // Local official asset
+  kaspa: "https://s2.coinmarketcap.com/static/img/coins/64x64/20396.png",
   polkadot: "https://s2.coinmarketcap.com/static/img/coins/64x64/6636.png",
   kusama: "https://coin-images.coingecko.com/coins/images/9568/small/m4zRhP5e_400x400.jpg",
   osmosis: "https://s2.coinmarketcap.com/static/img/coins/64x64/12220.png",
@@ -22,6 +23,7 @@ const CHAIN_LOGOS: Record<string, string> = {
 // Fallback colors for chains without logos
 const CHAIN_COLORS: Record<string, string> = {
   bittensor: "#000000",
+  kaspa: "#70C7BA",
   polkadot: "#E6007A",
   kusama: "#000000",
   osmosis: "#5E12A0",
@@ -78,6 +80,7 @@ export function ChainLogo({ chainId, size = 32, className = "" }: ChainLogoProps
 // Chain names mapping
 export const CHAIN_NAMES: Record<string, string> = {
   bittensor: "Bittensor",
+  kaspa: "Kaspa",
   polkadot: "Polkadot",
   kusama: "Kusama",
   osmosis: "Osmosis",
@@ -95,6 +98,7 @@ export const CHAIN_NAMES: Record<string, string> = {
 // Chain symbols mapping
 export const CHAIN_SYMBOLS: Record<string, string> = {
   bittensor: "TAO",
+  kaspa: "KAS",
   polkadot: "DOT",
   kusama: "KSM",
   osmosis: "OSMO",
@@ -112,6 +116,7 @@ export const CHAIN_SYMBOLS: Record<string, string> = {
 // Chain descriptions
 export const CHAIN_DESCRIPTIONS: Record<string, string> = {
   bittensor: "Export transfers, staking events, and emission rewards",
+  kaspa: "Export KAS transfers and mining rewards",
   polkadot: "Export transfers, staking rewards, and slashing events",
   kusama: "Export transfers, staking, crowdloans, and auction bids",
   osmosis: "Export transfers, swaps, LP positions, and staking rewards",
