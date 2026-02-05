@@ -53,6 +53,8 @@ export interface NormalizedTransaction {
   notes: string;
   tag: AwakenTag;
   fiatPrice?: number;
+  isAmbiguous?: boolean;
+  ambiguousReasons?: string[];
 }
 
 export interface AwakenCSVRow {
@@ -95,6 +97,8 @@ export interface PerpsTransaction {
   notes: string;
   transactionHash: string;
   tag: PerpsTag;
+  isAmbiguous?: boolean;
+  ambiguousReasons?: string[];
 }
 
 export interface AwakenPerpsCSVRow {
@@ -107,4 +111,16 @@ export interface AwakenPerpsCSVRow {
   Notes: string;
   "Transaction Hash": string;
   Tag: string;
+}
+
+export interface TransactionSummary {
+  totalTrades?: number;
+  openPositions?: number;
+  closePositions?: number;
+  fundingPayments?: number;
+  totalPnL?: number;
+  totalFees?: number;
+  tradedAssets?: string[];
+  subaccounts?: number;
+  totalTransactions?: number;
 }

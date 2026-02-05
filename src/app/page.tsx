@@ -5,8 +5,14 @@ import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { ChainLogo, CHAIN_NAMES, CHAIN_SYMBOLS, CHAIN_DESCRIPTIONS } from "@/components/chain-logo";
-import type { PerpsTransaction, NormalizedTransaction } from "@/lib/types";
+import { DateRangePicker } from "@/components/date-range-picker";
+import { PaginatedTable } from "@/components/paginated-table";
+import { DuplicateExportWarning } from "@/components/duplicate-export-warning";
+import type { PerpsTransaction, NormalizedTransaction, TransactionSummary } from "@/lib/types";
 import { generateAwakenPerpsCSV, generateAwakenCSV } from "@/lib/csv";
+import { fetchWithRetry } from "@/lib/fetch-with-retry";
+import { buildCacheKey, getCachedTransactions, setCachedTransactions } from "@/lib/transaction-cache";
+import { isDuplicateExport, addExportRecord, type ExportRecord } from "@/lib/export-history";
 
 interface ChainConfig {
   id: string;
@@ -155,43 +161,43 @@ interface FetchState {
   message?: string;
 }
 
-interface TransactionSummary {
-  totalTrades?: number;
-  openPositions?: number;
-  closePositions?: number;
-  fundingPayments?: number;
-  totalPnL?: number;
-  totalFees?: number;
-  tradedAssets?: string[];
-  subaccounts?: number;
-  totalTransactions?: number;
-}
-
 export default function Home() {
   const [selectedChain, setSelectedChain] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [secondaryInputValue, setSecondaryInputValue] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const [transactions, setTransactions] = useState<(PerpsTransaction | NormalizedTransaction)[]>([]);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
+  const [fromCache, setFromCache] = useState(false);
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateRecord, setDuplicateRecord] = useState<ExportRecord | null>(null);
 
   const selectedChainConfig = CHAINS.find((c) => c.id === selectedChain);
+
+  const ambiguousCount = transactions.filter(
+    (tx) => "isAmbiguous" in tx && tx.isAmbiguous
+  ).length;
 
   const handleChainSelect = (chainId: string) => {
     setSelectedChain(chainId);
     setIsDropdownOpen(false);
     setInputValue("");
     setSecondaryInputValue("");
+    setStartDate("");
+    setEndDate("");
     setFetchState({ status: "idle" });
     setTransactions([]);
     setSummary(null);
+    setFromCache(false);
+    setShowDuplicateWarning(false);
+    setDuplicateRecord(null);
   };
 
-  const handleSubmit = useCallback(
-    async (e: FormEvent) => {
-      e.preventDefault();
-
+  const fetchTransactions = useCallback(
+    async (forceRefresh = false) => {
       if (!inputValue.trim() || !selectedChainConfig) {
         setFetchState({
           status: "error",
@@ -200,9 +206,33 @@ export default function Home() {
         return;
       }
 
+      // Build cache key
+      const cacheKey = buildCacheKey(
+        selectedChain,
+        inputValue.trim(),
+        startDate,
+        endDate
+      );
+
+      // Check cache first (unless force refreshing)
+      if (!forceRefresh) {
+        const cached = getCachedTransactions(cacheKey);
+        if (cached) {
+          setTransactions(cached.transactions as (PerpsTransaction | NormalizedTransaction)[]);
+          setSummary(cached.summary);
+          setFromCache(true);
+          setFetchState({
+            status: "complete",
+            message: `Found ${cached.transactions.length} transactions`,
+          });
+          return;
+        }
+      }
+
       setFetchState({ status: "fetching", message: `Connecting to ${CHAIN_NAMES[selectedChain]}...` });
       setTransactions([]);
       setSummary(null);
+      setFromCache(false);
 
       try {
         const body: Record<string, string> = selectedChainConfig.inputType === "apiKey"
@@ -214,7 +244,11 @@ export default function Home() {
           body.evmAddress = secondaryInputValue.trim();
         }
 
-        const response = await fetch(`/api/${selectedChain}/transactions`, {
+        // Add date range if provided
+        if (startDate) body.startDate = startDate;
+        if (endDate) body.endDate = endDate;
+
+        const response = await fetchWithRetry(`/api/${selectedChain}/transactions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -239,6 +273,9 @@ export default function Home() {
         setTransactions(txs);
         setSummary(result.summary);
 
+        // Cache the results
+        setCachedTransactions(cacheKey, txs, result.summary);
+
         setFetchState({
           status: "complete",
           message: `Found ${txs.length} transactions`,
@@ -250,10 +287,22 @@ export default function Home() {
         });
       }
     },
-    [inputValue, secondaryInputValue, selectedChain, selectedChainConfig]
+    [inputValue, secondaryInputValue, startDate, endDate, selectedChain, selectedChainConfig]
   );
 
-  const handleDownloadCSV = useCallback(() => {
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      await fetchTransactions(false);
+    },
+    [fetchTransactions]
+  );
+
+  const handleRefresh = useCallback(async () => {
+    await fetchTransactions(true);
+  }, [fetchTransactions]);
+
+  const performDownload = useCallback(() => {
     if (!transactions.length || !selectedChainConfig) return;
 
     let csv: string;
@@ -277,7 +326,41 @@ export default function Home() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [transactions, selectedChain, selectedChainConfig]);
+
+    // Record the export
+    addExportRecord(selectedChain, inputValue.trim(), startDate, endDate);
+  }, [transactions, selectedChain, selectedChainConfig, inputValue, startDate, endDate]);
+
+  const handleDownloadCSV = useCallback(() => {
+    if (!transactions.length || !selectedChainConfig) return;
+
+    // Check for duplicate export
+    const existingExport = isDuplicateExport(
+      selectedChain,
+      inputValue.trim(),
+      startDate,
+      endDate
+    );
+
+    if (existingExport) {
+      setDuplicateRecord(existingExport);
+      setShowDuplicateWarning(true);
+      return;
+    }
+
+    performDownload();
+  }, [transactions, selectedChainConfig, selectedChain, inputValue, startDate, endDate, performDownload]);
+
+  const handleConfirmDuplicateExport = useCallback(() => {
+    setShowDuplicateWarning(false);
+    setDuplicateRecord(null);
+    performDownload();
+  }, [performDownload]);
+
+  const handleCancelDuplicateExport = useCallback(() => {
+    setShowDuplicateWarning(false);
+    setDuplicateRecord(null);
+  }, []);
 
   const isLoading = fetchState.status === "fetching" || fetchState.status === "processing";
 
@@ -320,7 +403,7 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="flex-1 px-4 py-12">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-4xl">
           {/* Hero */}
           <div className="text-center">
             <h1 className="text-balance text-3xl font-semibold tracking-tight text-[var(--foreground)] sm:text-4xl">
@@ -343,7 +426,7 @@ export default function Home() {
           </div>
 
           {/* Chain Selector */}
-          <div className="mt-10">
+          <div className="mx-auto mt-10 max-w-2xl">
             <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
               1. Select blockchain
             </label>
@@ -423,7 +506,7 @@ export default function Home() {
 
           {/* Input Form - appears after chain selection */}
           {selectedChainConfig && (
-            <form onSubmit={handleSubmit} className="mt-8">
+            <form onSubmit={handleSubmit} className="mx-auto mt-8 max-w-2xl">
               <label htmlFor="walletInput" className="mb-2 block text-sm font-medium text-[var(--foreground)]">
                 2. {selectedChainConfig.inputLabel}
               </label>
@@ -469,29 +552,44 @@ export default function Home() {
                     </p>
                   </div>
                 )}
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isLoading || !inputValue.trim()}
-                    className="rounded-lg bg-[var(--foreground)] px-6 py-2.5 text-sm font-medium text-[var(--background)] transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isLoading ? "Fetching..." : "Fetch Transactions"}
-                  </button>
-                </div>
+              </div>
+
+              {/* Date Range Picker */}
+              <div className="mt-6">
+                <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
+                  3. Date range (optional)
+                </label>
+                <DateRangePicker
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isLoading || !inputValue.trim()}
+                  className="rounded-lg bg-[var(--foreground)] px-6 py-2.5 text-sm font-medium text-[var(--background)] transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isLoading ? "Fetching..." : "Fetch Transactions"}
+                </button>
               </div>
             </form>
           )}
 
           {/* Progress Indicator */}
           {fetchState.status !== "idle" && fetchState.status !== "complete" && (
-            <div className="mt-6">
+            <div className="mx-auto mt-6 max-w-2xl">
               <ProgressIndicator status={fetchState.status} message={fetchState.message} />
             </div>
           )}
 
           {/* Error State */}
           {fetchState.status === "error" && (
-            <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center">
+            <div className="mx-auto mt-6 max-w-2xl rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center">
               <p className="text-red-500">{fetchState.message}</p>
               <p className="mt-1 text-sm text-[var(--muted)]">
                 Please check your input and try again.
@@ -514,6 +612,11 @@ export default function Home() {
                       P&L: {summary.totalPnL >= 0 ? "+" : ""}{summary.totalPnL.toFixed(2)} USDC
                     </p>
                   )}
+                  {ambiguousCount > 0 && (
+                    <p className="mt-1 text-sm font-medium text-amber-500">
+                      {ambiguousCount} transaction{ambiguousCount !== 1 ? "s" : ""} flagged for review
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={handleDownloadCSV}
@@ -523,6 +626,26 @@ export default function Home() {
                   Download CSV
                 </button>
               </div>
+
+              {/* Cache Banner */}
+              {fromCache && (
+                <div className="flex items-center justify-between rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/5 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <CacheIcon className="size-4 text-[var(--accent)]" />
+                    <span className="text-sm text-[var(--foreground)]">
+                      Loaded from cache
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                    className="rounded-lg border border-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-white disabled:opacity-50"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              )}
 
               {/* Quick Stats */}
               {summary && (
@@ -557,45 +680,22 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Transaction Preview */}
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <p className="mb-3 text-sm font-medium text-[var(--foreground)]">Preview (first 10)</p>
-                <div className="space-y-2 text-xs">
-                  {transactions.slice(0, 10).map((tx, i) => {
-                    const date = 'date' in tx ? tx.date : ('timestamp' in tx ? tx.timestamp : null);
-                    const asset = 'asset' in tx ? tx.asset : ('sentCurrency' in tx ? tx.sentCurrency || tx.receivedCurrency : '');
-                    return (
-                      <div key={i} className="flex items-center justify-between rounded-lg bg-[var(--background)] px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          <span className="text-[var(--muted)]">
-                            {date ? new Date(date).toLocaleDateString() : '-'}
-                          </span>
-                          <span className="font-medium text-[var(--foreground)]">{asset}</span>
-                        </div>
-                        {'tag' in tx && (
-                          <span className="rounded-full bg-[var(--accent-muted)] px-2 py-0.5 text-[var(--accent)]">
-                            {String(tx.tag).replace("_", " ")}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {transactions.length > 10 && (
-                  <p className="mt-3 text-center text-xs text-[var(--muted)]">
-                    +{transactions.length - 10} more transactions in CSV
-                  </p>
-                )}
-              </div>
+              {/* Paginated Table */}
+              <PaginatedTable
+                transactions={transactions}
+                chainId={selectedChain}
+                isPerps={selectedChainConfig?.isPerps ?? false}
+              />
             </div>
           )}
 
           {/* Empty State */}
           {transactions.length === 0 && fetchState.status === "complete" && (
-            <div className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 text-center">
+            <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 text-center">
               <p className="text-lg font-medium text-[var(--foreground)]">No transactions found</p>
               <p className="mt-2 text-sm text-[var(--muted)]">
-                This {selectedChainConfig?.inputType === "apiKey" ? "account" : "address"} has no transaction history.
+                This {selectedChainConfig?.inputType === "apiKey" ? "account" : "address"} has no transaction history
+                {(startDate || endDate) ? " in the selected date range" : ""}.
               </p>
             </div>
           )}
@@ -629,6 +729,14 @@ export default function Home() {
           onClick={() => setIsDropdownOpen(false)}
         />
       )}
+
+      {/* Duplicate Export Warning Modal */}
+      <DuplicateExportWarning
+        open={showDuplicateWarning}
+        previousExport={duplicateRecord}
+        onCancel={handleCancelDuplicateExport}
+        onConfirm={handleConfirmDuplicateExport}
+      />
     </div>
   );
 }
@@ -676,6 +784,21 @@ function WarningIcon({ className }: { className?: string }) {
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function CacheIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v4" />
+      <path d="m16.2 7.8 2.9-2.9" />
+      <path d="M18 12h4" />
+      <path d="m16.2 16.2 2.9 2.9" />
+      <path d="M12 18v4" />
+      <path d="m4.9 19.1 2.9-2.9" />
+      <path d="M2 12h4" />
+      <path d="m4.9 4.9 2.9 2.9" />
     </svg>
   );
 }
