@@ -15,14 +15,21 @@ import {
 } from "@/lib/chains/polkadot/transactions";
 import { generateAwakenCSV } from "@/lib/csv";
 import { isValidPolkadotAddress } from "@/lib/chains/polkadot/utils";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 import type { NormalizedTransaction } from "@/lib/types";
 
-export const maxDuration = 120; // 2 minutes should be enough with 5 req/s rate limit
+export const maxDuration = 120;
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const address = searchParams.get("address");
-  const format = searchParams.get("format") || "json";
+interface TransactionParams {
+  address: string;
+  format?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+async function handleTransactions(params: TransactionParams) {
+  const { address, format = "json", startDate, endDate } = params;
 
   if (!address) {
     return NextResponse.json(
@@ -39,7 +46,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch all data in parallel where possible
     const [transfers, rewards, slashes, stakingExtrinsics] = await Promise.all([
       fetchAllTransfers(address),
       fetchAllRewards(address),
@@ -47,7 +53,6 @@ export async function GET(request: NextRequest) {
       fetchStakingExtrinsics(address),
     ]);
 
-    // Get date range for price history
     const allTimestamps = [
       ...transfers.map((t) => t.block_timestamp),
       ...rewards.map((r) => r.block_timestamp),
@@ -59,32 +64,24 @@ export async function GET(request: NextRequest) {
     if (allTimestamps.length > 0) {
       const minTimestamp = Math.min(...allTimestamps);
       const maxTimestamp = Math.max(...allTimestamps);
-      const startDate = new Date(minTimestamp * 1000).toISOString().split("T")[0];
-      const endDate = new Date(maxTimestamp * 1000).toISOString().split("T")[0];
-      priceMap = await fetchPriceHistory(startDate, endDate);
+      const start = new Date(minTimestamp * 1000).toISOString().split("T")[0];
+      const end = new Date(maxTimestamp * 1000).toISOString().split("T")[0];
+      priceMap = await fetchPriceHistory(start, end);
     }
 
-    // Normalize transfers
     const normalizedTransfers: NormalizedTransaction[] = transfers.map((t) =>
       normalizeTransfer(t, address, priceMap)
     );
-
-    // Normalize rewards
     const normalizedRewards: NormalizedTransaction[] = rewards.map((r) =>
       normalizeReward(r, priceMap)
     );
-
-    // Normalize slashes
     const normalizedSlashes: NormalizedTransaction[] = slashes.map((s) =>
       normalizeSlash(s, priceMap)
     );
-
-    // Normalize staking extrinsics (bond, unbond, etc.)
     const normalizedStaking: NormalizedTransaction[] = stakingExtrinsics
       .map((e) => normalizeStakingExtrinsic(e, priceMap))
       .filter((tx): tx is NormalizedTransaction => tx !== null);
 
-    // Merge and sort all transactions
     const allTransactions = mergeAndSortTransactions(
       normalizedTransfers,
       normalizedRewards,
@@ -92,9 +89,11 @@ export async function GET(request: NextRequest) {
       normalizedStaking
     );
 
-    // Return based on format
+    const filtered = filterByDateRange(allTransactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
     if (format === "csv") {
-      const csv = generateAwakenCSV(allTransactions);
+      const csv = generateAwakenCSV(flagged);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -105,14 +104,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       address,
-      totalTransactions: allTransactions.length,
+      totalTransactions: flagged.length,
       breakdown: {
         transfers: normalizedTransfers.length,
         rewards: normalizedRewards.length,
         slashes: normalizedSlashes.length,
         staking: normalizedStaking.length,
       },
-      transactions: allTransactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching Polkadot transactions:", error);
@@ -124,4 +123,24 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  return handleTransactions({
+    address: searchParams.get("address") || "",
+    format: searchParams.get("format") || "json",
+    startDate: searchParams.get("startDate") || undefined,
+    endDate: searchParams.get("endDate") || undefined,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  return handleTransactions({
+    address: body.address || "",
+    format: body.format || "json",
+    startDate: body.startDate || undefined,
+    endDate: body.endDate || undefined,
+  });
 }

@@ -21,7 +21,9 @@ export function transactionToAwakenRow(tx: NormalizedTransaction): AwakenCSVRow 
     "Fee Amount": tx.feeAmount > 0 ? formatAmount(tx.feeAmount) : "",
     "Fee Currency": tx.feeAmount > 0 ? tx.feeCurrency : "",
     "Transaction Hash": tx.transactionHash,
-    Notes: tx.notes,
+    Notes: tx.isAmbiguous && tx.ambiguousReasons?.length
+      ? `${tx.notes}${tx.notes ? " " : ""}[REVIEW: ${tx.ambiguousReasons.join("; ")}]`
+      : tx.notes,
     Tag: tx.tag,
   };
 }
@@ -88,7 +90,9 @@ export function perpsTransactionToAwakenRow(tx: PerpsTransaction): AwakenPerpsCS
     Fee: tx.fee > 0 ? formatAmount(tx.fee) : "0",
     "P&L": formatPnL(tx.pnl),
     "Payment Token": tx.paymentToken,
-    Notes: tx.notes,
+    Notes: tx.isAmbiguous && tx.ambiguousReasons?.length
+      ? `${tx.notes}${tx.notes ? " " : ""}[REVIEW: ${tx.ambiguousReasons.join("; ")}]`
+      : tx.notes,
     "Transaction Hash": tx.transactionHash,
     Tag: tx.tag,
   };

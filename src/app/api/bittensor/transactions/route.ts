@@ -13,16 +13,21 @@ import {
 } from "@/lib/chains/bittensor/transactions";
 import { generateAwakenCSV } from "@/lib/csv";
 import { isValidSS58Address } from "@/lib/chains/bittensor/utils";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 import type { NormalizedTransaction } from "@/lib/types";
 
 export const maxDuration = 300; // Allow up to 5 minutes for rate-limited API calls
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const address = searchParams.get("address");
-  const format = searchParams.get("format") || "json";
-  const startDate = searchParams.get("start");
-  const endDate = searchParams.get("end");
+interface TransactionParams {
+  address: string;
+  format?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+async function handleTransactions(params: TransactionParams) {
+  const { address, format = "json", startDate, endDate } = params;
 
   if (!address) {
     return NextResponse.json(
@@ -72,9 +77,13 @@ export async function GET(request: NextRequest) {
       emissionRewards
     );
 
+    // Apply date filter and ambiguous flagging
+    const filtered = filterByDateRange(allTransactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
     // Return based on format
     if (format === "csv") {
-      const csv = generateAwakenCSV(allTransactions);
+      const csv = generateAwakenCSV(flagged);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -85,13 +94,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       address,
-      totalTransactions: allTransactions.length,
+      totalTransactions: flagged.length,
       breakdown: {
         transfers: normalizedTransfers.length,
         delegations: normalizedDelegations.length,
         emissionRewards: emissionRewards.length,
       },
-      transactions: allTransactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -103,4 +112,24 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  return handleTransactions({
+    address: searchParams.get("address") || "",
+    format: searchParams.get("format") || "json",
+    startDate: searchParams.get("start") || undefined,
+    endDate: searchParams.get("end") || undefined,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  return handleTransactions({
+    address: body.address || "",
+    format: body.format || "json",
+    startDate: body.startDate || undefined,
+    endDate: body.endDate || undefined,
+  });
 }

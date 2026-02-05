@@ -8,13 +8,15 @@ import {
   calculateSummary,
 } from "@/lib/chains/dydx/transactions";
 import { generateAwakenPerpsCSV } from "@/lib/csv";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousPerpsTransactions } from "@/lib/ambiguous";
 
-export const maxDuration = 120; // 2 minutes for accounts with lots of trades
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { address, format = "json" } = body;
+    const { address, format = "json", startDate, endDate } = body;
 
     if (!address) {
       return NextResponse.json(
@@ -23,7 +25,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate address format
     if (!validateAddress(address)) {
       return NextResponse.json(
         {
@@ -34,10 +35,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch all data for the address
     const { fills, transfers, fundingPayments, subaccounts } = await fetchAllDataForAddress(address);
 
-    // Check if account exists
     if (subaccounts.length === 0) {
       return NextResponse.json({
         totalTransactions: 0,
@@ -56,19 +55,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Normalize to Perps transactions
     const transactions = normalizeDydxData(
       fills,
       fundingPayments,
       transfers
     );
 
-    // Calculate summary
-    const summary = calculateSummary(transactions, subaccounts.length);
+    const filtered = filterByDateRange(transactions, { startDate, endDate });
+    const flagged = flagAmbiguousPerpsTransactions(filtered);
 
-    // Return based on format
+    const summary = calculateSummary(flagged, subaccounts.length);
+
     if (format === "csv") {
-      const csv = generateAwakenPerpsCSV(transactions);
+      const csv = generateAwakenPerpsCSV(flagged);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -78,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      totalTransactions: transactions.length,
+      totalTransactions: flagged.length,
       summary: {
         totalTrades: summary.totalTrades,
         openPositions: summary.openPositions,
@@ -89,7 +88,7 @@ export async function POST(request: NextRequest) {
         tradedAssets: summary.tradedAssets,
         subaccounts: summary.subaccounts,
       },
-      transactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching dYdX transactions:", error);

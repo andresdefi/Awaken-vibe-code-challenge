@@ -10,13 +10,20 @@ import {
   calculateSummary,
 } from "@/lib/chains/canton/transactions";
 import { generateAwakenCSV } from "@/lib/csv";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 
-export const maxDuration = 120; // 2 minutes for fetching updates
+export const maxDuration = 120;
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const partyId = searchParams.get("partyId");
-  const format = searchParams.get("format") || "json";
+interface TransactionParams {
+  partyId: string;
+  format?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+async function handleTransactions(params: TransactionParams) {
+  const { partyId, format = "json", startDate, endDate } = params;
 
   if (!partyId) {
     return NextResponse.json(
@@ -36,24 +43,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch latest round for balance query
     const latestRound = await fetchLatestRound();
-
-    // Fetch wallet balance
     const balance = await fetchWalletBalance(partyId, latestRound);
-
-    // Fetch transaction updates for this party
     const updates = await fetchAllUpdatesForParty(partyId, 2000);
 
-    // Normalize to transactions
     const transactions = normalizeCantonUpdates(updates, partyId);
 
-    // Calculate summary
-    const summary = calculateSummary(transactions);
+    const filtered = filterByDateRange(transactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
 
-    // Return based on format
+    const summary = calculateSummary(flagged);
+
     if (format === "csv") {
-      const csv = generateAwakenCSV(transactions);
+      const csv = generateAwakenCSV(flagged);
       const partyHint = partyId.split("::")[0] || "canton";
       return new NextResponse(csv, {
         headers: {
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
             holdingFees: balance.total_holding_fees,
           }
         : null,
-      totalTransactions: transactions.length,
+      totalTransactions: flagged.length,
       summary: {
         transfers: summary.transfers,
         rewards: summary.rewards,
@@ -81,7 +83,7 @@ export async function GET(request: NextRequest) {
         totalReceived: summary.totalReceived,
         totalFees: summary.totalFees,
       },
-      transactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching Canton transactions:", error);
@@ -93,4 +95,24 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  return handleTransactions({
+    partyId: searchParams.get("partyId") || "",
+    format: searchParams.get("format") || "json",
+    startDate: searchParams.get("startDate") || undefined,
+    endDate: searchParams.get("endDate") || undefined,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  return handleTransactions({
+    partyId: body.address || body.partyId || "",
+    format: body.format || "json",
+    startDate: body.startDate || undefined,
+    endDate: body.endDate || undefined,
+  });
 }

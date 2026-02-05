@@ -163,6 +163,15 @@ const CHAINS: ChainConfig[] = [
     inputHelp: "Enter your Stellar address starting with 'G'",
     isPerps: false,
   },
+  {
+    id: "multiversx",
+    features: ["Transfers", "ESDT Tokens", "Staking", "Delegation", "Rewards", "USD Prices"],
+    inputType: "address",
+    inputLabel: "MultiversX Wallet Address",
+    inputPlaceholder: "erd1...",
+    inputHelp: "Enter your MultiversX (EGLD) wallet address starting with 'erd1'",
+    isPerps: false,
+  },
 ];
 
 interface FetchState {

@@ -9,14 +9,21 @@ import {
 } from "@/lib/chains/injective/transactions";
 import { generateAwakenCSV } from "@/lib/csv";
 import { isValidInjectiveAddress } from "@/lib/chains/injective/utils";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 import type { NormalizedTransaction } from "@/lib/types";
 
-export const maxDuration = 120; // 2 minutes for comprehensive data fetch
+export const maxDuration = 120;
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const address = searchParams.get("address");
-  const format = searchParams.get("format") || "json";
+interface TransactionParams {
+  address: string;
+  format?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+async function handleTransactions(params: TransactionParams) {
+  const { address, format = "json", startDate, endDate } = params;
 
   if (!address) {
     return NextResponse.json(
@@ -33,7 +40,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch all transactions
     const transactions = await fetchAllTransactions(address);
 
     if (transactions.length === 0) {
@@ -61,28 +67,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get date range for price history
     const timestamps = transactions.map((tx) => tx.timestamp.getTime());
     const minTimestamp = Math.min(...timestamps);
     const maxTimestamp = Math.max(...timestamps);
-    const startDate = new Date(minTimestamp).toISOString().split("T")[0];
-    const endDate = new Date(maxTimestamp).toISOString().split("T")[0];
+    const start = new Date(minTimestamp).toISOString().split("T")[0];
+    const end = new Date(maxTimestamp).toISOString().split("T")[0];
 
-    // Fetch price history
-    const priceMap = await fetchPriceHistory(startDate, endDate);
+    const priceMap = await fetchPriceHistory(start, end);
 
-    // Normalize all transactions
     const allNormalized: NormalizedTransaction[] = [];
-
     for (const tx of transactions) {
       const normalized = normalizeTransaction(tx, address, priceMap);
       allNormalized.push(...normalized);
     }
 
-    // Merge and sort
     const sortedTransactions = mergeAndSortTransactions(allNormalized);
 
-    // Calculate breakdown
+    const filtered = filterByDateRange(sortedTransactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
     const breakdown = {
       transfers: 0,
       staking: 0,
@@ -91,7 +94,7 @@ export async function GET(request: NextRequest) {
       ibc: 0,
     };
 
-    for (const tx of sortedTransactions) {
+    for (const tx of flagged) {
       if (tx.type === "transfer_sent" || tx.type === "transfer_received") {
         if (tx.tag === "wallet_transfer") {
           breakdown.ibc++;
@@ -107,9 +110,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Return based on format
     if (format === "csv") {
-      const csv = generateAwakenCSV(sortedTransactions);
+      const csv = generateAwakenCSV(flagged);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -120,9 +122,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       address,
-      totalTransactions: sortedTransactions.length,
+      totalTransactions: flagged.length,
       breakdown,
-      transactions: sortedTransactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching Injective transactions:", error);
@@ -134,4 +136,24 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  return handleTransactions({
+    address: searchParams.get("address") || "",
+    format: searchParams.get("format") || "json",
+    startDate: searchParams.get("startDate") || undefined,
+    endDate: searchParams.get("endDate") || undefined,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  return handleTransactions({
+    address: body.address || "",
+    format: body.format || "json",
+    startDate: body.startDate || undefined,
+    endDate: body.endDate || undefined,
+  });
 }

@@ -9,11 +9,13 @@ import {
   normalizeXRPLTransactions,
   calculateSummary,
 } from "@/lib/chains/xrpl/transactions";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { address } = body;
+    const { address, startDate, endDate } = body;
 
     if (!address) {
       return NextResponse.json(
@@ -22,10 +24,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Normalize the address
     const xrpAddress = normalizeAddress(address);
 
-    // Validate address format
     if (!isValidXRPAddress(xrpAddress)) {
       return NextResponse.json(
         {
@@ -37,7 +37,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify account exists on ledger
     const accountExists = await fetchAccountInfo(xrpAddress);
 
     if (!accountExists) {
@@ -50,13 +49,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch all transactions
     console.log(`Fetching transactions for XRP account ${xrpAddress}...`);
     const rawTransactions = await fetchAllTransactions(xrpAddress);
 
     console.log(`Found ${rawTransactions.length} raw transactions`);
 
-    // Normalize transactions
     const transactions = await normalizeXRPLTransactions(
       rawTransactions,
       xrpAddress
@@ -64,11 +61,13 @@ export async function POST(request: Request) {
 
     console.log(`Normalized to ${transactions.length} transactions`);
 
-    // Calculate summary
-    const summary = calculateSummary(transactions);
+    const filtered = filterByDateRange(transactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
+    const summary = calculateSummary(flagged);
 
     return NextResponse.json({
-      transactions,
+      transactions: flagged,
       summary,
       address: xrpAddress,
     });

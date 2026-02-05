@@ -9,11 +9,13 @@ import {
   normalizeHederaTransactions,
   calculateSummary,
 } from "@/lib/chains/hedera/transactions";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { address } = body;
+    const { address, startDate, endDate } = body;
 
     if (!address) {
       return NextResponse.json(
@@ -22,10 +24,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Normalize the account ID
     const accountId = normalizeAccountId(address);
 
-    // Validate account ID format
     if (!isValidAccountId(accountId)) {
       return NextResponse.json(
         {
@@ -36,7 +36,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify account exists
     const accountExists = await fetchAccountInfo(accountId);
 
     if (!accountExists) {
@@ -49,13 +48,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch all transactions
     console.log(`Fetching transactions for Hedera account ${accountId}...`);
     const rawTransactions = await fetchAllTransactions(accountId);
 
     console.log(`Found ${rawTransactions.length} raw transactions`);
 
-    // Normalize transactions
     const transactions = await normalizeHederaTransactions(
       rawTransactions,
       accountId
@@ -63,11 +60,13 @@ export async function POST(request: Request) {
 
     console.log(`Normalized to ${transactions.length} transactions`);
 
-    // Calculate summary
-    const summary = calculateSummary(transactions);
+    const filtered = filterByDateRange(transactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
+    const summary = calculateSummary(flagged);
 
     return NextResponse.json({
-      transactions,
+      transactions: flagged,
       summary,
       accountId,
     });

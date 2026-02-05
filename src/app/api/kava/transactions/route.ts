@@ -10,11 +10,13 @@ import {
   normalizeKavaTransactions,
   calculateSummary,
 } from "@/lib/chains/kava/transactions";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { address, evmAddress } = body;
+    const { address, evmAddress, startDate, endDate } = body;
 
     if (!address) {
       return NextResponse.json(
@@ -23,10 +25,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Normalize the Cosmos address
     const kavaAddress = normalizeAddress(address);
 
-    // Validate Cosmos address format
     if (!isValidKavaAddress(kavaAddress)) {
       return NextResponse.json(
         {
@@ -38,7 +38,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate EVM address if provided
     let validatedEvmAddress: string | null = null;
     if (evmAddress) {
       const normalizedEvmAddress = evmAddress.trim().toLowerCase();
@@ -49,7 +48,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Verify account exists on chain
     const accountExists = await fetchAccountInfo(kavaAddress);
 
     if (!accountExists) {
@@ -62,7 +60,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch all transactions (Cosmos + EVM if EVM address provided)
     console.log(`Fetching transactions for Kava account ${kavaAddress}...`);
     if (validatedEvmAddress) {
       console.log(`Also fetching EVM transactions for ${validatedEvmAddress}...`);
@@ -75,7 +72,6 @@ export async function POST(request: Request) {
 
     console.log(`Found ${cosmos.length} Cosmos transactions and ${evmTransfers.length} EVM transfers`);
 
-    // Normalize transactions
     const transactions = await normalizeKavaTransactions(
       cosmos,
       evmTransfers,
@@ -85,11 +81,13 @@ export async function POST(request: Request) {
 
     console.log(`Normalized to ${transactions.length} transactions`);
 
-    // Calculate summary
-    const summary = calculateSummary(transactions);
+    const filtered = filterByDateRange(transactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
+    const summary = calculateSummary(flagged);
 
     return NextResponse.json({
-      transactions,
+      transactions: flagged,
       summary,
       address: kavaAddress,
       evmAddress: validatedEvmAddress,

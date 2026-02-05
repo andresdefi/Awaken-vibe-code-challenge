@@ -9,14 +9,21 @@ import {
 } from "@/lib/chains/ronin/transactions";
 import { generateAwakenCSV } from "@/lib/csv";
 import { isValidRoninAddress, normalizeRoninAddress } from "@/lib/chains/ronin/utils";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 import type { NormalizedTransaction } from "@/lib/types";
 
-export const maxDuration = 120; // 2 minutes for large wallets
+export const maxDuration = 120;
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const address = searchParams.get("address");
-  const format = searchParams.get("format") || "json";
+interface TransactionParams {
+  address: string;
+  format?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+async function handleTransactions(params: TransactionParams) {
+  const { address, format = "json", startDate, endDate } = params;
 
   if (!address) {
     return NextResponse.json(
@@ -37,7 +44,6 @@ export async function GET(request: NextRequest) {
   const normalizedAddress = normalizeRoninAddress(address);
 
   try {
-    // Fetch wallet history from Moralis
     const walletHistory = await fetchAllWalletHistory(normalizedAddress);
 
     if (walletHistory.length === 0) {
@@ -54,23 +60,21 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get date range for price history
     const timestamps = walletHistory.map((tx) => new Date(tx.block_timestamp).getTime());
     const minTimestamp = Math.min(...timestamps);
     const maxTimestamp = Math.max(...timestamps);
 
-    // Fetch RON price history
     const priceMap = await fetchPriceHistory(minTimestamp, maxTimestamp);
 
-    // Normalize all transactions
     const normalizedTxs = walletHistory.map((tx) =>
       normalizeWalletHistoryTx(tx, normalizedAddress, priceMap)
     );
 
-    // Merge and sort
     const allTransactions = mergeAndSortTransactions(normalizedTxs);
 
-    // Calculate breakdown
+    const filtered = filterByDateRange(allTransactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
     const breakdown = {
       transfers: 0,
       swaps: 0,
@@ -79,7 +83,7 @@ export async function GET(request: NextRequest) {
       tokens: 0,
     };
 
-    for (const tx of allTransactions) {
+    for (const tx of flagged) {
       switch (tx.type) {
         case "transfer_sent":
         case "transfer_received":
@@ -106,9 +110,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Return based on format
     if (format === "csv") {
-      const csv = generateAwakenCSV(allTransactions);
+      const csv = generateAwakenCSV(flagged);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -119,9 +122,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       address: normalizedAddress,
-      totalTransactions: allTransactions.length,
+      totalTransactions: flagged.length,
       breakdown,
-      transactions: allTransactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching Ronin transactions:", error);
@@ -133,4 +136,24 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  return handleTransactions({
+    address: searchParams.get("address") || "",
+    format: searchParams.get("format") || "json",
+    startDate: searchParams.get("startDate") || undefined,
+    endDate: searchParams.get("endDate") || undefined,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  return handleTransactions({
+    address: body.address || "",
+    format: body.format || "json",
+    startDate: body.startDate || undefined,
+    endDate: body.endDate || undefined,
+  });
 }

@@ -18,6 +18,7 @@ const CHAIN_LOGOS: Record<string, string> = {
   xrpl: "https://s2.coinmarketcap.com/static/img/coins/64x64/52.png",
   kava: "https://s2.coinmarketcap.com/static/img/coins/64x64/4846.png",
   stellar: "https://s2.coinmarketcap.com/static/img/coins/64x64/512.png",
+  multiversx: "https://s2.coinmarketcap.com/static/img/coins/64x64/6892.png",
 };
 
 // Fallback colors for chains without logos
@@ -36,6 +37,7 @@ const CHAIN_COLORS: Record<string, string> = {
   xrpl: "#23292F",
   kava: "#FF564F",
   stellar: "#000000",
+  multiversx: "#23F7DD",
 };
 
 interface ChainLogoProps {
@@ -93,6 +95,7 @@ export const CHAIN_NAMES: Record<string, string> = {
   xrpl: "XRP Ledger",
   kava: "Kava",
   stellar: "Stellar",
+  multiversx: "MultiversX",
 };
 
 // Chain symbols mapping
@@ -111,6 +114,7 @@ export const CHAIN_SYMBOLS: Record<string, string> = {
   xrpl: "XRP",
   kava: "KAVA",
   stellar: "XLM",
+  multiversx: "EGLD",
 };
 
 // Chain descriptions
@@ -129,4 +133,5 @@ export const CHAIN_DESCRIPTIONS: Record<string, string> = {
   xrpl: "Export XRP transfers, DEX trades, NFTs, AMM, and escrow",
   kava: "Export KAVA transfers, staking, CDP, lending, swaps, and rewards",
   stellar: "Export XLM transfers, DEX trades, liquidity pools, and claimable balances",
+  multiversx: "Export EGLD transfers, ESDT tokens, staking, and delegation rewards",
 };

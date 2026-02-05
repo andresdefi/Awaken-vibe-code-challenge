@@ -10,13 +10,15 @@ import {
   calculateSummary,
 } from "@/lib/chains/extended/transactions";
 import { generateAwakenPerpsCSV } from "@/lib/csv";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousPerpsTransactions } from "@/lib/ambiguous";
 
-export const maxDuration = 120; // 2 minutes for accounts with lots of trades
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { apiKey, format = "json" } = body;
+    const { apiKey, format = "json", startDate, endDate } = body;
 
     if (!apiKey) {
       return NextResponse.json(
@@ -25,7 +27,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate API key
     const isValid = await validateApiKey(apiKey);
     if (!isValid) {
       return NextResponse.json(
@@ -37,26 +38,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch all data in parallel
     const [trades, fundingPayments, assetOperations] = await Promise.all([
       fetchAllTrades(apiKey),
       fetchAllFundingPayments(apiKey),
       fetchAllAssetOperations(apiKey),
     ]);
 
-    // Normalize to Perps transactions
     const transactions = normalizeExtendedData(
       trades,
       fundingPayments,
       assetOperations
     );
 
-    // Calculate summary
-    const summary = calculateSummary(transactions);
+    const filtered = filterByDateRange(transactions, { startDate, endDate });
+    const flagged = flagAmbiguousPerpsTransactions(filtered);
 
-    // Return based on format
+    const summary = calculateSummary(flagged);
+
     if (format === "csv") {
-      const csv = generateAwakenPerpsCSV(transactions);
+      const csv = generateAwakenPerpsCSV(flagged);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      totalTransactions: transactions.length,
+      totalTransactions: flagged.length,
       summary: {
         totalTrades: summary.totalTrades,
         openPositions: summary.openPositions,
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         totalFees: summary.totalFees,
         tradedAssets: summary.tradedAssets,
       },
-      transactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching Extended transactions:", error);

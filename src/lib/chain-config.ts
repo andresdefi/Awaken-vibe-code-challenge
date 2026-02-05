@@ -13,6 +13,7 @@ export const EXPLORER_URLS: Record<string, string> = {
   xrpl: "https://xrpscan.com/tx/",
   kava: "https://www.mintscan.io/kava/tx/",
   stellar: "https://stellar.expert/explorer/public/tx/",
+  multiversx: "https://explorer.multiversx.com/transactions/",
 };
 
 export function getExplorerUrl(chainId: string, txHash: string): string | null {

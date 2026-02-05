@@ -20,16 +20,30 @@ import {
 } from "@/lib/chains/kusama/transactions";
 import { generateAwakenCSV } from "@/lib/csv";
 import { isValidKusamaAddress } from "@/lib/chains/kusama/utils";
+import { filterByDateRange } from "@/lib/date-filter";
+import { flagAmbiguousTransactions } from "@/lib/ambiguous";
 import type { NormalizedTransaction } from "@/lib/types";
 
-export const maxDuration = 120; // 2 minutes for comprehensive data fetch
+export const maxDuration = 120;
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const address = searchParams.get("address");
-  const format = searchParams.get("format") || "json";
-  const includeCrowdloans = searchParams.get("crowdloans") !== "false"; // Default: include
-  const includeAuctions = searchParams.get("auctions") !== "false"; // Default: include
+interface TransactionParams {
+  address: string;
+  format?: string;
+  includeCrowdloans?: boolean;
+  includeAuctions?: boolean;
+  startDate?: string;
+  endDate?: string;
+}
+
+async function handleTransactions(params: TransactionParams) {
+  const {
+    address,
+    format = "json",
+    includeCrowdloans = true,
+    includeAuctions = true,
+    startDate,
+    endDate,
+  } = params;
 
   if (!address) {
     return NextResponse.json(
@@ -46,7 +60,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch core data in parallel
     const [transfers, rewards, slashes, stakingExtrinsics] = await Promise.all([
       fetchAllTransfers(address),
       fetchAllRewards(address),
@@ -54,19 +67,16 @@ export async function GET(request: NextRequest) {
       fetchStakingExtrinsics(address),
     ]);
 
-    // Fetch Kusama-specific data (crowdloans and auctions)
     let crowdloanContributions: Awaited<ReturnType<typeof fetchAllCrowdloanContributions>> = [];
     let auctionBids: Awaited<ReturnType<typeof fetchAllAuctionBids>> = [];
     let crowdloanFunds = new Map<number, { para_id: number; name?: string }>();
 
     if (includeCrowdloans || includeAuctions) {
-      // Fetch crowdloan funds for parachain names
       const fundsData = await fetchCrowdloanFunds();
       fundsData.forEach((fund, id) => {
         crowdloanFunds.set(fund.para_id, { para_id: fund.para_id });
       });
 
-      // Fetch crowdloan and auction data in parallel
       const [crowdloans, bids] = await Promise.all([
         includeCrowdloans ? fetchAllCrowdloanContributions(address) : Promise.resolve([]),
         includeAuctions ? fetchAllAuctionBids(address) : Promise.resolve([]),
@@ -76,7 +86,6 @@ export async function GET(request: NextRequest) {
       auctionBids = bids;
     }
 
-    // Get date range for price history
     const allTimestamps = [
       ...transfers.map((t) => t.block_timestamp),
       ...rewards.map((r) => r.block_timestamp),
@@ -90,48 +99,35 @@ export async function GET(request: NextRequest) {
     if (allTimestamps.length > 0) {
       const minTimestamp = Math.min(...allTimestamps);
       const maxTimestamp = Math.max(...allTimestamps);
-      const startDate = new Date(minTimestamp * 1000).toISOString().split("T")[0];
-      const endDate = new Date(maxTimestamp * 1000).toISOString().split("T")[0];
-      priceMap = await fetchPriceHistory(startDate, endDate);
+      const start = new Date(minTimestamp * 1000).toISOString().split("T")[0];
+      const end = new Date(maxTimestamp * 1000).toISOString().split("T")[0];
+      priceMap = await fetchPriceHistory(start, end);
     }
 
-    // Build parachain name map (para_id -> name)
     const parachainNames = new Map<number, string>();
-    crowdloanFunds.forEach((fund, id) => {
+    crowdloanFunds.forEach((fund) => {
       parachainNames.set(fund.para_id, `Parachain #${fund.para_id}`);
     });
 
-    // Normalize transfers
     const normalizedTransfers: NormalizedTransaction[] = transfers.map((t) =>
       normalizeTransfer(t, address, priceMap)
     );
-
-    // Normalize rewards
     const normalizedRewards: NormalizedTransaction[] = rewards.map((r) =>
       normalizeReward(r, priceMap)
     );
-
-    // Normalize slashes
     const normalizedSlashes: NormalizedTransaction[] = slashes.map((s) =>
       normalizeSlash(s, priceMap)
     );
-
-    // Normalize staking extrinsics (bond, unbond, etc.)
     const normalizedStaking: NormalizedTransaction[] = stakingExtrinsics
       .map((e) => normalizeStakingExtrinsic(e, priceMap))
       .filter((tx): tx is NormalizedTransaction => tx !== null);
-
-    // Normalize crowdloan contributions
     const normalizedCrowdloans: NormalizedTransaction[] = crowdloanContributions.map((c) =>
       normalizeCrowdloanContribution(c, priceMap, parachainNames)
     );
-
-    // Normalize auction bids
     const normalizedAuctions: NormalizedTransaction[] = auctionBids.map((b) =>
       normalizeAuctionBid(b, priceMap, parachainNames)
     );
 
-    // Merge and sort all transactions
     const allTransactions = mergeAndSortTransactions(
       normalizedTransfers,
       normalizedRewards,
@@ -141,9 +137,11 @@ export async function GET(request: NextRequest) {
       normalizedAuctions
     );
 
-    // Return based on format
+    const filtered = filterByDateRange(allTransactions, { startDate, endDate });
+    const flagged = flagAmbiguousTransactions(filtered);
+
     if (format === "csv") {
-      const csv = generateAwakenCSV(allTransactions);
+      const csv = generateAwakenCSV(flagged);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -154,7 +152,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       address,
-      totalTransactions: allTransactions.length,
+      totalTransactions: flagged.length,
       breakdown: {
         transfers: normalizedTransfers.length,
         rewards: normalizedRewards.length,
@@ -163,7 +161,7 @@ export async function GET(request: NextRequest) {
         crowdloans: normalizedCrowdloans.length,
         auctions: normalizedAuctions.length,
       },
-      transactions: allTransactions,
+      transactions: flagged,
     });
   } catch (error) {
     console.error("Error fetching Kusama transactions:", error);
@@ -175,4 +173,28 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  return handleTransactions({
+    address: searchParams.get("address") || "",
+    format: searchParams.get("format") || "json",
+    includeCrowdloans: searchParams.get("crowdloans") !== "false",
+    includeAuctions: searchParams.get("auctions") !== "false",
+    startDate: searchParams.get("startDate") || undefined,
+    endDate: searchParams.get("endDate") || undefined,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  return handleTransactions({
+    address: body.address || "",
+    format: body.format || "json",
+    includeCrowdloans: body.crowdloans !== false,
+    includeAuctions: body.auctions !== false,
+    startDate: body.startDate || undefined,
+    endDate: body.endDate || undefined,
+  });
 }

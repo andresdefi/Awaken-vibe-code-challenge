@@ -17,36 +17,19 @@ Track progress of chain integrations to match/exceed AwakenFetch coverage.
 - [x] XRPL (XRP) - XRPL Data API
 - [x] Kava (KAVA) - Kava API + Moralis EVM
 - [x] Stellar (XLM) - Horizon API
+- [x] Kaspa (KAS) - Kaspa API (`api.kaspa.org`)
+- [x] MultiversX (EGLD) - MultiversX API (`api.multiversx.com`)
 
 ## Chains to Add (from AwakenFetch)
 
-### Priority 1: Kaspa
-- [ ] **Kaspa (KAS)**
-  - API: `https://api.kaspa.org`
-  - Endpoints:
-    - `/addresses/{address}/full-transactions` - transaction history (paginated)
-    - `/info/price` - current USD price
-  - Address format: `kaspa:` prefix + bech32 encoded
-  - Transaction types: transfers (UTXO-based, like Bitcoin)
-  - Decimals: 8 (1 KAS = 100,000,000 sompi)
-  - Notes: Simple UTXO chain, no staking/smart contracts
-
-### Priority 2: MultiversX (formerly Elrond)
-- [ ] **MultiversX (EGLD)**
-  - API: `https://api.multiversx.com`
-  - Address format: `erd1` prefix (bech32)
-  - Transaction types: transfers, staking, delegation, smart contracts
-  - Decimals: 18
-  - Notes: Has ESDT tokens (like ERC-20)
-
-### Priority 3: Radix
+### Priority 1: Radix
 - [ ] **Radix (XRD)**
   - API: Gateway API
   - Address format: `rdx1` prefix
   - Transaction types: transfers, staking, liquidity
   - Notes: Unique transaction model (manifests)
 
-### Priority 4: Ergo
+### Priority 2: Ergo
 - [ ] **Ergo (ERG)**
   - API: Explorer API
   - Address format: `9` prefix (base58)
