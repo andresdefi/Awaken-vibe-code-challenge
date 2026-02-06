@@ -21,7 +21,7 @@ const CHAIN_LOGOS: Record<string, string> = {
   multiversx: "https://s2.coinmarketcap.com/static/img/coins/64x64/6892.png",
   radix: "https://s2.coinmarketcap.com/static/img/coins/64x64/11948.png",
   ergo: "https://s2.coinmarketcap.com/static/img/coins/64x64/1762.png",
-  glue: "https://assets.coingecko.com/coins/images/39458/small/glue.png",
+  glue: "https://glue.net/wp-content/themes/glue/dist/img/favicon/apple-touch-icon.png",
 };
 
 // Fallback colors for chains without logos
