@@ -16,6 +16,7 @@ export const EXPLORER_URLS: Record<string, string> = {
   multiversx: "https://explorer.multiversx.com/transactions/",
   radix: "https://dashboard.radixdlt.com/transaction/",
   ergo: "https://explorer.ergoplatform.com/en/transactions/",
+  glue: "https://backend.explorer.mainnet.prod.gke.glue.net/tx/",
 };
 
 export function getExplorerUrl(chainId: string, txHash: string): string | null {

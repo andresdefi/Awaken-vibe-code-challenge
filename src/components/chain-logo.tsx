@@ -21,6 +21,7 @@ const CHAIN_LOGOS: Record<string, string> = {
   multiversx: "https://s2.coinmarketcap.com/static/img/coins/64x64/6892.png",
   radix: "https://s2.coinmarketcap.com/static/img/coins/64x64/11948.png",
   ergo: "https://s2.coinmarketcap.com/static/img/coins/64x64/1762.png",
+  glue: "https://assets.coingecko.com/coins/images/39458/small/glue.png",
 };
 
 // Fallback colors for chains without logos
@@ -42,6 +43,7 @@ const CHAIN_COLORS: Record<string, string> = {
   multiversx: "#23F7DD",
   radix: "#052CC0",
   ergo: "#FF5733",
+  glue: "#00D4AA",
 };
 
 interface ChainLogoProps {
@@ -102,6 +104,7 @@ export const CHAIN_NAMES: Record<string, string> = {
   multiversx: "MultiversX",
   radix: "Radix",
   ergo: "Ergo",
+  glue: "Glue Network",
 };
 
 // Chain symbols mapping
@@ -123,6 +126,7 @@ export const CHAIN_SYMBOLS: Record<string, string> = {
   multiversx: "EGLD",
   radix: "XRD",
   ergo: "ERG",
+  glue: "GLUE",
 };
 
 // Chain descriptions
@@ -144,4 +148,5 @@ export const CHAIN_DESCRIPTIONS: Record<string, string> = {
   multiversx: "Export EGLD transfers, ESDT tokens, staking, and delegation rewards",
   radix: "Export XRD transfers, staking rewards, swaps, and pool operations",
   ergo: "Export ERG transfers, token transactions, and mining rewards",
+  glue: "Export GLUE transfers, token transactions, and cross-chain activity",
 };

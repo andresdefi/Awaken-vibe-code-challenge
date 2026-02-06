@@ -190,6 +190,15 @@ const CHAINS: ChainConfig[] = [
     inputHelp: "Enter your Ergo (ERG) wallet address (typically starts with '9' for P2PK addresses)",
     isPerps: false,
   },
+  {
+    id: "glue",
+    features: ["Transfers", "Tokens", "Cross-Chain", "USD Prices"],
+    inputType: "address",
+    inputLabel: "Glue Network Address",
+    inputPlaceholder: "0x...",
+    inputHelp: "Enter your Glue Network (GLUE) wallet address starting with '0x'",
+    isPerps: false,
+  },
 ];
 
 interface FetchState {
