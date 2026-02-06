@@ -30,7 +30,7 @@ Multi-chain transaction exporter for [Awaken.tax](https://awaken.tax) CSV format
 >
 > And link to it for our 30k+ users.
 
-## Supported Chains (13 Integrations)
+## Supported Chains (19 Integrations)
 
 | Chain | Type | Features | API Key Required |
 |-------|------|----------|------------------|
@@ -44,8 +44,14 @@ Multi-chain transaction exporter for [Awaken.tax](https://awaken.tax) CSV format
 | XRP Ledger (XRP) | L1 | Transfers, DEX Trades, NFTs, AMM, Escrow, USD Prices | No |
 | Kava (KAVA) | Cosmos+EVM | Transfers, Staking, CDP, Lending, Swaps, Rewards, USD Prices | No |
 | Stellar (XLM) | L1 | Transfers, DEX Trades, Liquidity Pools, Path Payments, USD Prices | No |
+| MultiversX (EGLD) | L1 | Transfers, ESDT Tokens, Staking, Delegation, USD Prices | No |
+| Radix (XRD) | L1 | Transfers, Staking, Rewards, Swaps, Pools, USD Prices | No |
+| Ergo (ERG) | L1 | Transfers, Tokens, Mining Rewards, USD Prices | No |
+| Glue Network (GLUE) | L1 | Transfers, Tokens, Cross-Chain, USD Prices | No |
+| Kaspa (KAS) | L1 | Transfers, Mining Rewards, USD Prices | No |
 | Extended | Perps | Trades, Positions, Funding, P&L | Yes (API Key) |
 | dYdX v4 (DYDX) | Perps | Trades, Positions, Funding, P&L | No |
+| GMX (Arbitrum) | Perps | Trades, Positions, Funding, P&L, Liquidations | No |
 | Canton Network (CC) | Enterprise | Transfers, Rewards, Fees, Locked CC | No |
 
 ### Not Integrated
@@ -56,7 +62,8 @@ Multi-chain transaction exporter for [Awaken.tax](https://awaken.tax) CSV format
 
 ## Features
 
-- **13 Chain Integrations** - Diverse ecosystems including L1s, Cosmos, EVM, and Perps DEXs
+- **19 Chain Integrations** - Diverse ecosystems including L1s, Cosmos, EVM, and Perps DEXs
+- **Public REST API** - Unified `/api/v1/export` endpoint for programmatic access
 - **Unified UI** - Single-page flow with dropdown chain selector
 - **Awaken Branding** - Matches Awaken.tax color scheme and styling
 - **Two CSV Formats** - Standard format + Perps/Futures format
@@ -106,6 +113,111 @@ Open [http://localhost:3000](http://localhost:3000)
 ```bash
 npm run build
 npm start
+```
+
+---
+
+## Public REST API
+
+This project provides a free, public REST API for programmatic access to transaction data.
+
+### Unified Endpoint
+
+**Base URL:** `/api/v1/export`
+
+The unified endpoint routes to all supported chains with consistent parameters.
+
+### GET Request
+
+```bash
+GET /api/v1/export?chain={chain}&address={address}&format={format}&start={date}&end={date}
+```
+
+**Parameters:**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `chain` | Yes | Chain identifier (see supported chains below) |
+| `address` | Yes* | Wallet address (*not required for Extended, which uses apiKey) |
+| `apiKey` | No | API key (required for Extended) |
+| `evmAddress` | No | Secondary EVM address (optional for Kava) |
+| `format` | No | `json` (default) or `csv` |
+| `start` | No | Start date (YYYY-MM-DD) |
+| `end` | No | End date (YYYY-MM-DD) |
+
+### POST Request
+
+```bash
+POST /api/v1/export
+Content-Type: application/json
+
+{
+  "chain": "bittensor",
+  "address": "5xxx...",
+  "format": "csv",
+  "startDate": "2024-01-01",
+  "endDate": "2024-12-31"
+}
+```
+
+### Examples
+
+**Fetch JSON data:**
+```bash
+curl "https://awaken-vibe-code-challenge.vercel.app/api/v1/export?chain=bittensor&address=5xxx"
+```
+
+**Download CSV:**
+```bash
+curl -o transactions.csv "https://awaken-vibe-code-challenge.vercel.app/api/v1/export?chain=polkadot&address=1xxx&format=csv"
+```
+
+**With date range:**
+```bash
+curl "https://awaken-vibe-code-challenge.vercel.app/api/v1/export?chain=dydx&address=dydx1xxx&format=csv&start=2024-01-01&end=2024-12-31"
+```
+
+### Chain-Specific Endpoints
+
+Each chain also has a dedicated endpoint:
+
+```bash
+# GET (returns API info if no address)
+GET /api/{chain}/transactions?address={address}&format={format}&start={date}&end={date}
+
+# POST
+POST /api/{chain}/transactions
+{"address": "...", "format": "csv"}
+```
+
+**Available chains:** `bittensor`, `kaspa`, `polkadot`, `kusama`, `osmosis`, `injective`, `ronin`, `hedera`, `xrpl`, `kava`, `stellar`, `canton`, `multiversx`, `radix`, `ergo`, `glue`, `dydx`, `gmx`, `extended`
+
+### Response Format
+
+**JSON Response:**
+```json
+{
+  "totalTransactions": 150,
+  "summary": {
+    "totalTrades": 45,
+    "openPositions": 20,
+    "closePositions": 25,
+    "totalPnL": 1234.56,
+    "totalFees": 12.34,
+    "tradedAssets": ["BTC", "ETH", "SOL"]
+  },
+  "transactions": [...]
+}
+```
+
+**CSV Response:** Returns Awaken-compatible CSV file with appropriate headers.
+
+### API Documentation
+
+Call the endpoint without parameters to get full API documentation:
+
+```bash
+curl "https://awaken-vibe-code-challenge.vercel.app/api/v1/export"
 ```
 
 ---
@@ -298,6 +410,22 @@ For perps trading (Extended, dYdX). See [Perps CSV Format Guide](https://help.aw
 
 ---
 
+### GMX V2 (Arbitrum Perps)
+
+| Event | Tag |
+|-------|-----|
+| Position Increase | `open_position` |
+| Position Decrease | `close_position` |
+| Liquidation | `close_position` |
+| Funding Claim | `funding_payment` |
+
+**API:** GMX Subsquid (public, no API key required)
+**Rate Limit:** 5 requests/second
+**CSV Format:** Perps/Futures format
+**Markets:** BTC, ETH, SOL, ARB, DOGE, LTC, LINK, UNI, XRP, NEAR, ATOM, AAVE, AVAX, OP, GMX, PEPE, WIF, SHIB, and more
+
+---
+
 ### Canton Network (CC)
 
 | Event | Tag |
@@ -403,6 +531,7 @@ src/
 ├── app/
 │   ├── page.tsx                    # Main page with unified chain selector
 │   └── api/
+│       ├── v1/export/              # Unified public REST API
 │       ├── bittensor/transactions/
 │       ├── polkadot/transactions/
 │       ├── kusama/transactions/
@@ -412,10 +541,16 @@ src/
 │       ├── hedera/transactions/
 │       ├── extended/transactions/
 │       ├── dydx/transactions/
+│       ├── gmx/transactions/
 │       ├── canton/transactions/
 │       ├── xrpl/transactions/
 │       ├── kava/transactions/
-│       └── stellar/transactions/
+│       ├── stellar/transactions/
+│       ├── multiversx/transactions/
+│       ├── radix/transactions/
+│       ├── ergo/transactions/
+│       ├── glue/transactions/
+│       └── kaspa/transactions/
 ├── components/
 │   ├── chain-logo.tsx              # Chain logos with fallbacks
 │   ├── theme-toggle.tsx            # Dark/light mode
@@ -433,10 +568,16 @@ src/
         ├── hedera/
         ├── extended/
         ├── dydx/
+        ├── gmx/
         ├── canton/
         ├── xrpl/
         ├── kava/
-        └── stellar/
+        ├── stellar/
+        ├── multiversx/
+        ├── radix/
+        ├── ergo/
+        ├── glue/
+        └── kaspa/
 ```
 
 ---
@@ -465,7 +606,12 @@ MIT License - Open source for the community
 - [Subscan](https://subscan.io) for the Polkadot/Kusama API
 - [CoinGecko](https://coingecko.com) for price data
 - [dYdX](https://dydx.exchange) for the public indexer API
+- [GMX](https://gmx.io) for the Subsquid indexer
 - [Hedera](https://hedera.com) for the Mirror Node API
 - [XRP Ledger](https://xrpl.org) for the public API servers
 - [Kava](https://www.kava.io) for the archive API servers
 - [Stellar](https://stellar.org) for the Horizon API
+- [MultiversX](https://multiversx.com) for the public API
+- [Radix](https://radixdlt.com) for the Gateway API
+- [Ergo](https://ergoplatform.org) for the Explorer API
+- [Kaspa](https://kaspa.org) for the public API servers

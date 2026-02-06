@@ -114,6 +114,15 @@ const CHAINS: ChainConfig[] = [
     isPerps: true,
   },
   {
+    id: "gmx",
+    features: ["Trades", "Positions", "Funding", "P&L", "Arbitrum"],
+    inputType: "address",
+    inputLabel: "Ethereum Wallet Address",
+    inputPlaceholder: "0x...",
+    inputHelp: "Enter your Ethereum wallet address used on GMX (Arbitrum)",
+    isPerps: true,
+  },
+  {
     id: "canton",
     features: ["Transfers", "Rewards", "Fees", "Locked CC"],
     inputType: "address",
