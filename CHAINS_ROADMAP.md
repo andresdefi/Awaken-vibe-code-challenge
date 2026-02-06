@@ -20,15 +20,11 @@ Track progress of chain integrations for Awaken CSV export tool.
 - [x] Kaspa (KAS) - Kaspa API (`api.kaspa.org`)
 - [x] MultiversX (EGLD) - MultiversX API (`api.multiversx.com`)
 - [x] Radix (XRD) - Gateway API (`mainnet.radixdlt.com`)
+- [x] Ergo (ERG) - Explorer API (`api.ergoplatform.com`)
 
 ## Chains to Add
 
-### Priority 1: Ergo
-- [ ] **Ergo (ERG)**
-  - API: Explorer API
-  - Address format: `9` prefix (base58)
-  - Transaction types: transfers (UTXO-based)
-  - Decimals: 9
+(No pending chains)
 
 ## Not Implementing
 

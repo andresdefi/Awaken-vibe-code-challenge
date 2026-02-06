@@ -15,6 +15,7 @@ export const EXPLORER_URLS: Record<string, string> = {
   stellar: "https://stellar.expert/explorer/public/tx/",
   multiversx: "https://explorer.multiversx.com/transactions/",
   radix: "https://dashboard.radixdlt.com/transaction/",
+  ergo: "https://explorer.ergoplatform.com/en/transactions/",
 };
 
 export function getExplorerUrl(chainId: string, txHash: string): string | null {

@@ -20,6 +20,7 @@ const CHAIN_LOGOS: Record<string, string> = {
   stellar: "https://s2.coinmarketcap.com/static/img/coins/64x64/512.png",
   multiversx: "https://s2.coinmarketcap.com/static/img/coins/64x64/6892.png",
   radix: "https://s2.coinmarketcap.com/static/img/coins/64x64/11948.png",
+  ergo: "https://s2.coinmarketcap.com/static/img/coins/64x64/1762.png",
 };
 
 // Fallback colors for chains without logos
@@ -40,6 +41,7 @@ const CHAIN_COLORS: Record<string, string> = {
   stellar: "#000000",
   multiversx: "#23F7DD",
   radix: "#052CC0",
+  ergo: "#FF5733",
 };
 
 interface ChainLogoProps {
@@ -99,6 +101,7 @@ export const CHAIN_NAMES: Record<string, string> = {
   stellar: "Stellar",
   multiversx: "MultiversX",
   radix: "Radix",
+  ergo: "Ergo",
 };
 
 // Chain symbols mapping
@@ -119,6 +122,7 @@ export const CHAIN_SYMBOLS: Record<string, string> = {
   stellar: "XLM",
   multiversx: "EGLD",
   radix: "XRD",
+  ergo: "ERG",
 };
 
 // Chain descriptions
@@ -139,4 +143,5 @@ export const CHAIN_DESCRIPTIONS: Record<string, string> = {
   stellar: "Export XLM transfers, DEX trades, liquidity pools, and claimable balances",
   multiversx: "Export EGLD transfers, ESDT tokens, staking, and delegation rewards",
   radix: "Export XRD transfers, staking rewards, swaps, and pool operations",
+  ergo: "Export ERG transfers, token transactions, and mining rewards",
 };

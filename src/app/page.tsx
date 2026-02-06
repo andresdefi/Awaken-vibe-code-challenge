@@ -181,6 +181,15 @@ const CHAINS: ChainConfig[] = [
     inputHelp: "Enter your Radix account address starting with 'account_rdx1'",
     isPerps: false,
   },
+  {
+    id: "ergo",
+    features: ["Transfers", "Tokens", "Mining Rewards", "USD Prices"],
+    inputType: "address",
+    inputLabel: "Ergo Wallet Address",
+    inputPlaceholder: "9...",
+    inputHelp: "Enter your Ergo (ERG) wallet address (typically starts with '9' for P2PK addresses)",
+    isPerps: false,
+  },
 ];
 
 interface FetchState {
