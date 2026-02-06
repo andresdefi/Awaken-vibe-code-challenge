@@ -1,6 +1,6 @@
 # Chains Roadmap
 
-Track progress of chain integrations to match/exceed AwakenFetch coverage.
+Track progress of chain integrations for Awaken CSV export tool.
 
 ## Implemented Chains
 
@@ -21,7 +21,7 @@ Track progress of chain integrations to match/exceed AwakenFetch coverage.
 - [x] MultiversX (EGLD) - MultiversX API (`api.multiversx.com`)
 - [x] Radix (XRD) - Gateway API (`mainnet.radixdlt.com`)
 
-## Chains to Add (from AwakenFetch)
+## Chains to Add
 
 ### Priority 1: Ergo
 - [ ] **Ergo (ERG)**
