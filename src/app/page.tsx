@@ -172,6 +172,15 @@ const CHAINS: ChainConfig[] = [
     inputHelp: "Enter your MultiversX (EGLD) wallet address starting with 'erd1'",
     isPerps: false,
   },
+  {
+    id: "radix",
+    features: ["Transfers", "Staking", "Rewards", "Swaps", "Pools", "USD Prices"],
+    inputType: "address",
+    inputLabel: "Radix Account Address",
+    inputPlaceholder: "account_rdx1...",
+    inputHelp: "Enter your Radix account address starting with 'account_rdx1'",
+    isPerps: false,
+  },
 ];
 
 interface FetchState {

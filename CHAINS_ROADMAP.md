@@ -19,17 +19,11 @@ Track progress of chain integrations to match/exceed AwakenFetch coverage.
 - [x] Stellar (XLM) - Horizon API
 - [x] Kaspa (KAS) - Kaspa API (`api.kaspa.org`)
 - [x] MultiversX (EGLD) - MultiversX API (`api.multiversx.com`)
+- [x] Radix (XRD) - Gateway API (`mainnet.radixdlt.com`)
 
 ## Chains to Add (from AwakenFetch)
 
-### Priority 1: Radix
-- [ ] **Radix (XRD)**
-  - API: Gateway API
-  - Address format: `rdx1` prefix
-  - Transaction types: transfers, staking, liquidity
-  - Notes: Unique transaction model (manifests)
-
-### Priority 2: Ergo
+### Priority 1: Ergo
 - [ ] **Ergo (ERG)**
   - API: Explorer API
   - Address format: `9` prefix (base58)

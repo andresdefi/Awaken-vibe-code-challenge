@@ -19,6 +19,7 @@ const CHAIN_LOGOS: Record<string, string> = {
   kava: "https://s2.coinmarketcap.com/static/img/coins/64x64/4846.png",
   stellar: "https://s2.coinmarketcap.com/static/img/coins/64x64/512.png",
   multiversx: "https://s2.coinmarketcap.com/static/img/coins/64x64/6892.png",
+  radix: "https://s2.coinmarketcap.com/static/img/coins/64x64/11948.png",
 };
 
 // Fallback colors for chains without logos
@@ -38,6 +39,7 @@ const CHAIN_COLORS: Record<string, string> = {
   kava: "#FF564F",
   stellar: "#000000",
   multiversx: "#23F7DD",
+  radix: "#052CC0",
 };
 
 interface ChainLogoProps {
@@ -96,6 +98,7 @@ export const CHAIN_NAMES: Record<string, string> = {
   kava: "Kava",
   stellar: "Stellar",
   multiversx: "MultiversX",
+  radix: "Radix",
 };
 
 // Chain symbols mapping
@@ -115,6 +118,7 @@ export const CHAIN_SYMBOLS: Record<string, string> = {
   kava: "KAVA",
   stellar: "XLM",
   multiversx: "EGLD",
+  radix: "XRD",
 };
 
 // Chain descriptions
@@ -134,4 +138,5 @@ export const CHAIN_DESCRIPTIONS: Record<string, string> = {
   kava: "Export KAVA transfers, staking, CDP, lending, swaps, and rewards",
   stellar: "Export XLM transfers, DEX trades, liquidity pools, and claimable balances",
   multiversx: "Export EGLD transfers, ESDT tokens, staking, and delegation rewards",
+  radix: "Export XRD transfers, staking rewards, swaps, and pool operations",
 };
