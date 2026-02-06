@@ -414,7 +414,12 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
+          <a
+            href="https://awaken.tax"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 transition-opacity hover:opacity-80"
+          >
             <Image
               src="/logos/awaken.png"
               alt="Awaken"
@@ -423,7 +428,7 @@ export default function Home() {
               className="rounded-full"
             />
             <span className="text-lg font-semibold text-[var(--foreground)]">Awaken CSV</span>
-          </div>
+          </a>
           <div className="flex items-center gap-3">
             <a
               href="https://awaken.tax"
