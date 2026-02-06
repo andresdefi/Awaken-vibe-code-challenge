@@ -776,7 +776,26 @@ export default function Home() {
                 Awaken.tax
               </a>
             </p>
-            <p className="text-xs">Open source • MIT License</p>
+            <div className="flex items-center gap-4 text-xs">
+              <a
+                href="https://www.coingecko.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 hover:opacity-80"
+              >
+                <span>Price data by</span>
+                <Image
+                  src="/logos/coingecko.png"
+                  alt="CoinGecko"
+                  width={16}
+                  height={16}
+                  className="rounded-full"
+                />
+                <span className="font-medium">CoinGecko</span>
+              </a>
+              <span>•</span>
+              <span>Open source • MIT License</span>
+            </div>
           </div>
         </div>
       </footer>
